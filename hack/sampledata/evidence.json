@@ -1,0 +1,22 @@
+{
+  "id": "e4c1a5b8-7c8d-4f1e-9a2b-8c4d5e6f7a9c",
+  "collected": "2023-10-27T10:30:00Z",
+  "source": "OPA",
+  "policyId": "github-branch-protection",
+  "decision": "pass",
+  "details": [
+    {
+      "name": "github.com/example/repo",
+      "digest": {
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "subject": {
+    "name": "example-repo",
+    "uri": "github.com/example/repo",
+    "digest": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

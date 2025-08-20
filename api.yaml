@@ -1,0 +1,283 @@
+# Assisted by: Gemini 2.5 Pro
+openapi: 3.0.0
+info:
+  title: C2P Service API
+  version: 0.1.0
+  description: |
+    API for the Compliance-to-Policy (C2P) Service. This service provides control-based attribute enrichment for telemetry data,
+    leveraging internal domain logic and the C2P project's compliance knowledge.
+    It's designed to be called by an OpenTelemetry Collector's custom processor to enrich logs, metrics, and traces.
+
+#security:
+#  - BearerAuth: []
+
+paths:
+  /v1/enrich:
+    post:
+      summary: Enrich telemetry attributes with compliance control data
+      description: |
+        Accepts a set of key telemetry attributes (e.g., asset ID, policy name, user ID) and
+        returns additional compliance-related attributes based on internal domain logic.
+        This endpoint is intended to be called by an OpenTelemetry Collector's custom processor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrichmentRequest'
+      responses:
+        '200':
+          description: Successfully enriched attributes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrichmentResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    EnrichmentRequest:
+      type: object
+      properties:
+        summary:
+          type: string
+          description: A summary of the conformance assertion.
+        evidence:
+          $ref: '#/components/schemas/RawEvidence'
+      required:
+        - claimId
+        - timestamp
+        - evidence
+    RawEvidence:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the raw evidence.
+        timestamp:
+          type: string
+          format: date-time
+          description: The time when the raw evidence was generated.
+        source:
+          type: string
+          description: The source of the raw evidence (e.g., policy engine name).
+        policyId:
+          type: string
+          description: The ID of the policy that generated the evidence.
+        decision:
+          type: string
+          description: The decision made by the policy engine (e.g., "compliant", "non-compliant").
+        details:
+          type: string
+          format: json
+          description: Raw JSON output from the policy engine.
+        resource:
+          $ref: '#/components/schemas/Resource'
+      required:
+        - id
+        - timestamp
+        - source
+        - policyId
+        - decision
+        - details
+        - resource
+    Metadata:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the metadata.
+        timestamp:
+          type: string
+          format: date-time
+          description: The timestamp associated with the metadata.
+        source:
+          type: string
+          description: The source of the metadata.
+        policyId:
+          type: string
+          description: The ID of the policy related to the metadata.
+        decision:
+          type: string
+          description: The decision associated with the metadata.
+      required:
+        - id
+        - timestamp
+        - source
+        - policyId
+        - decision
+    Resource:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the resource.
+        uri:
+          type: string
+          description: Location of the resource
+      required:
+        - name
+        - uri
+
+    EnrichmentResponse:
+      type: object
+      description: "Enriched compliance finding with risk attributes and threat mappings."
+      properties:
+        result:
+          $ref: '#/components/schemas/Result'
+        impactedBaselines:
+          type: array
+          items:
+            $ref: '#/components/schemas/Baseline'
+        riskAssessment:
+          type: object
+          description: "Attributes from the Gemara logical model that quantify risk."
+          properties:
+            overallRiskScore:
+              type: number
+              description: "A calculated, quantitative score for the overall risk (e.g., 8.2)."
+            riskLevel:
+              $ref: '#/components/schemas/RiskLevel'
+            findingType:
+              type: string
+              description: "The type of compliance finding (e.g., policy_violation, misconfiguration)."
+            threat:
+              $ref: '#/components/schemas/Threat'
+        asset:
+          type: object
+          description: "Attributes providing business context for the affected asset."
+          properties:
+            criticality:
+              $ref: '#/components/schemas/AssetCriticality'
+            businessUnit:
+              type: string
+              description: "The business unit that owns the asset (e.g., finance, marketing)."
+            dataSensitivity:
+              type: string
+              description: "The type of sensitive data at risk (e.g., PII, PHI)."
+      required:
+        - result
+        - impactedBaselines
+        - riskAssessment
+        - asset
+
+    Result:
+      type: string
+      enum:
+        - Passed
+        - Failed
+        - Needs Review
+      description: "The possible outcomes of an evaluation or assessment."
+
+    Baseline:
+      description: "Baselines impacted by policy."
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Baseline identifier (e.g., OpenSSF, PCI DSS)."
+        requirements:
+          type: array
+          items:
+            type: string
+            description: "Requirement IDs within the baseline (e.g., 7.2)."
+      required:
+        - id
+        - requirements
+
+    RiskLevel:
+      type: string
+      enum:
+        - critical
+        - high
+        - medium
+        - low
+      description: "A categorical tag for the risk level, based on the overall risk score."
+
+    AssetCriticality:
+      type: string
+      enum:
+        - mission_critical
+        - production
+        - staging
+        - development
+        - sandbox
+      description: "The business criticality of the affected asset."
+
+    Threat:
+      type: object
+      description: "A detailed threat object from the Gemara logical model."
+      properties:
+        id:
+          type: string
+          description: "A unique identifier for the threat (e.g., CCC.TH01)."
+        title:
+          type: string
+          description: "A human-readable title for the threat (e.g., Access Control is Misconfigured)."
+        description:
+          type: string
+          description: "A detailed description of the threat."
+        mitreMappings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThreatMapping'
+      required:
+        - id
+        - title
+
+    ThreatMapping:
+      type: object
+      description: "A mapping to an external security framework, like MITRE ATT&CK."
+      properties:
+        referenceId:
+          type: string
+          description: "The name of the external reference (e.g., MITRE-ATT&CK)."
+        identifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ThreatIdentifier'
+      required:
+        - referenceId
+        - identifiers
+
+    ThreatIdentifier:
+      type: object
+      description: "A specific threat technique or sub-technique."
+      properties:
+        id:
+          type: string
+          description: "The MITRE ID (e.g., T1059.004)."
+        name:
+          type: string
+          description: "The name of the technique."
+        url:
+          type: string
+          description: "The URL to the technique's page for more information."
+      required:
+        - id
+        - name
+        - url
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+#  securitySchemes:
+#    BearerAuth:
+#      type: http
+#      scheme: bearer
+#      bearerFormat: JWT

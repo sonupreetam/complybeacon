@@ -1,0 +1,9 @@
+catalog-id: "OSPS-B"
+control-evaluations:
+  - control_id: OSPS-QA-07
+    assessments:
+      - requirement_id: OSPS-QA-07.01
+        methods:
+          - name: "github-branch-protection"
+            description: "Checking branch protections in GitHub"
+

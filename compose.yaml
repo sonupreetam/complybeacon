@@ -1,0 +1,61 @@
+version: "3"
+services:
+  loki:
+    image: "docker.io/grafana/loki:3.5.1"
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=grafanaManagedRecordingRules
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+    ports:
+      - "3000:3000/tcp"
+    entrypoint:
+      - sh
+      - -euc
+      - |
+        mkdir -p /etc/grafana/provisioning/datasources
+        cat <<EOF > /etc/grafana/provisioning/datasources/ds.yaml
+        apiVersion: 1
+        datasources:
+        - name: Loki
+          type: loki
+          access: proxy
+          orgId: 1
+          url: 'http://loki:3100'
+          basicAuth: false
+          isDefault: true
+          version: 1
+          editable: true 
+        EOF
+        /run.sh
+
+  compass:
+    build:
+      context: .
+      dockerfile: ./images/Containerfile.compass
+    restart: unless-stopped
+    volumes:
+      - ./hack/sampledata:/sampledata
+      - ./docs/config.yaml:/config.yaml
+    command: ["--config", "/config.yaml", "--catalog", "/sampledata/osps.yaml",  "--port", "8081", "--skip-tls"]
+    ports:
+      - "8081:8081"
+
+  collector:
+    build:
+      context: .
+      dockerfile: ./images/Containerfile.collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./collector-config.yaml:/etc/otel-collector.yaml
+    ports:
+      - "4317:4317"
+    depends_on:
+      - compass
