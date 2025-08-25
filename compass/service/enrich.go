@@ -23,8 +23,8 @@ func Enrich(rawEnv api.RawEvidence, transformer transformer.Transformer, scope S
 	}
 }
 
-func methodToResult(method layer4.AssessmentMethod) api.Result {
-	switch *method.Result {
+func methodToResult(procedure layer4.AssessmentProcedure) api.Result {
+	switch procedure.Result {
 	case layer4.Passed:
 		return api.Passed
 	case layer4.Failed:
@@ -36,7 +36,7 @@ func methodToResult(method layer4.AssessmentMethod) api.Result {
 	}
 }
 
-func determineImpact(scope Scope, inputMethod layer4.AssessmentMethod, plans []transformer.EvaluationPlan) []api.Baseline {
+func determineImpact(scope Scope, inputMethod layer4.AssessmentProcedure, plans []transformer.EvaluationPlan) []api.Baseline {
 	var baselines []api.Baseline
 	for _, plan := range plans {
 		catalog, ok := scope[plan.CatalogId]
@@ -49,9 +49,9 @@ func determineImpact(scope Scope, inputMethod layer4.AssessmentMethod, plans []t
 		// Find the Assessment Method in the plan
 		for _, eval := range plan.ControlEvaluations {
 			for _, requirement := range eval.Assessments {
-				for _, method := range requirement.Methods {
-					if method.Name == inputMethod.Name {
-						impactedRequirements = append(impactedRequirements, requirement.Requirement_Id)
+				for _, procedure := range requirement.Procedures {
+					if procedure.Name == inputMethod.Name {
+						impactedRequirements = append(impactedRequirements, requirement.RequirementId)
 						break
 					}
 				}

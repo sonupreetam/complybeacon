@@ -33,7 +33,7 @@ func (m *Transformer) PluginName() transformer.ID {
 	return ID
 }
 
-func (m *Transformer) Transform(evidence api.RawEvidence) layer4.AssessmentMethod {
+func (m *Transformer) Transform(evidence api.RawEvidence) layer4.AssessmentProcedure {
 	// Make a reasonable attempt to determine result here
 	var result layer4.Result
 	switch evidence.Decision {
@@ -49,11 +49,12 @@ func (m *Transformer) Transform(evidence api.RawEvidence) layer4.AssessmentMetho
 		result = layer4.NeedsReview
 
 	}
-	return layer4.AssessmentMethod{
+	return layer4.AssessmentProcedure{
+		Id:          evidence.PolicyId,
 		Name:        evidence.PolicyId,
 		Description: fmt.Sprintf("%v", evidence.Details),
 		Run:         true,
-		Result:      &result,
+		Result:      result,
 	}
 }
 

@@ -10,7 +10,7 @@ import (
 // transforming RawEvidence into a `gemara` AssessmentMethod.
 type Transformer interface {
 	PluginName() ID
-	Transform(evidence api.RawEvidence) layer4.AssessmentMethod
+	Transform(evidence api.RawEvidence) layer4.AssessmentProcedure
 	AddEvaluationPlan(plan EvaluationPlan)
 	Plans() []EvaluationPlan
 }
