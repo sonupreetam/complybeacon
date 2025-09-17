@@ -1,4 +1,4 @@
-package evidence
+package proofwatch
 
 import (
 	"context"
@@ -48,14 +48,4 @@ func (e *EvidenceObserver) Dropped(ctx context.Context, attrs ...attribute.KeyVa
 
 func (e *EvidenceObserver) Processed(ctx context.Context, attrs ...attribute.KeyValue) {
 	e.processedCount.Add(ctx, 1, metric.WithAttributes(attrs...))
-}
-
-func ToAttributes(event EvidenceEvent) []attribute.KeyValue {
-	return []attribute.KeyValue{
-		attribute.String("policy.source", event.Evidence.Source),
-		attribute.String("resource.name", event.Evidence.Subject.Name),
-		attribute.String("evidenceEvent.id", event.Evidence.ID),
-		attribute.String("policy.decision", event.Evidence.Decision),
-		attribute.String("policy.id", event.Evidence.PolicyID),
-	}
 }

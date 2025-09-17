@@ -17,7 +17,8 @@
 # Define a list of your Go modules.
 # Add or remove modules here as your project evolves.
 # The path should be relative to the Makefile's location.
-MODULES := ./compass ./proofwatch
+MODULES := ./compass ./proofwatch ./truthbeam
+BUILD := ./compass
 
 # The directory where the compiled binaries will be placed.
 BIN_DIR := bin
@@ -45,7 +46,7 @@ test: ## Runs unit tests for every module in the monorepo.
 # ------------------------------------------------------------------------------
 build: ## Builds a binary for each module and places it in the $(BIN_DIR) directory.
 	@mkdir -p $(BIN_DIR)
-	@for m in $(MODULES); do \
+	@for m in $(BUILD); do \
     		(cd $$m && go build -v -o ../$(BIN_DIR)/ ./cmd/... ); \
     		if [ $$? -ne 0 ]; then \
     			echo "Build failed for module: $$m"; \
@@ -64,7 +65,7 @@ clean: ## Removes all generated binaries and Go build caches.
 .PHONY: clean
 
 workspace: # Setup a go workspace with all modules
-		@go work init && go work use $(MODULES) "truthbeam" "beacon"
+		@go work init && go work use $(MODULES)
 .PHONY: workspace
 
 #------------------------------------------------------------------------------

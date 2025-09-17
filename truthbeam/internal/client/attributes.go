@@ -35,34 +35,29 @@ func ApplyAttributes(ctx context.Context, client *Client, serverURL string, _ pc
 		return fmt.Errorf("missing attribute 'policy.source'")
 	}
 
-	subjectNameVal, ok := attrs.Get("subject.name")
+	// Default base event data
+	categoryIDVal, ok := attrs.Get("category.id")
 	if !ok {
-		subjectNameVal = pcommon.NewValueStr("unknown")
+		categoryIDVal = pcommon.NewValueInt(0)
 	}
 
-	subjectNameURI, ok := attrs.Get("subject.uri")
+	classIDVal, ok := attrs.Get("class.id")
 	if !ok {
-		subjectNameURI = pcommon.NewValueStr("unknown")
+		classIDVal = pcommon.NewValueInt(0)
 	}
 
-	logBody := logRecord.Body()
-	if logBody.Type() != pcommon.ValueTypeBytes {
-		return fmt.Errorf("expected log body to be of type Bytes for JSON")
-	}
-	detailsJSON := logBody.Bytes().AsRaw()
+	categoryId := int(categoryIDVal.Int())
+	classId := int(classIDVal.Int())
 
 	enrichReq := EnrichmentRequest{
 		Evidence: RawEvidence{
-			Id:        evidenceIDVal.Str(),
-			Timestamp: logRecord.Timestamp().AsTime(),
-			Source:    policySourceVal.Str(),
-			PolicyId:  policyIDVal.Str(),
-			Decision:  policyDecisionVal.Str(),
-			Details:   json.RawMessage(detailsJSON),
-			Resource: Resource{
-				Name: subjectNameVal.Str(),
-				Uri:  subjectNameURI.Str(),
-			},
+			Id:         evidenceIDVal.Str(),
+			Timestamp:  logRecord.Timestamp().AsTime(),
+			CategoryId: &categoryId,
+			ClassId:    &classId,
+			Source:     policySourceVal.Str(),
+			PolicyId:   policyIDVal.Str(),
+			Decision:   policyDecisionVal.Str(),
 		},
 	}
 
@@ -71,17 +66,24 @@ func ApplyAttributes(ctx context.Context, client *Client, serverURL string, _ pc
 		return err
 	}
 
-	attrs.PutStr("compliance.result", string(enrichRes.Result))
-	baselines := attrs.PutEmptySlice("compliance.baselines")
+	attrs.PutStr("compliance.status", string(enrichRes.Status.Title))
+	attrs.PutStr("compliance.control", enrichRes.Compliance.Control)
+	attrs.PutStr("compliance.benchmark", enrichRes.Compliance.Benchmark)
+	attrs.PutStr("compliance.category", enrichRes.Compliance.Category)
 	requirements := attrs.PutEmptySlice("compliance.requirements")
+	standards := attrs.PutEmptySlice("compliance.standards")
 
-	for _, impacted := range enrichRes.ImpactedBaselines {
-		newVal := baselines.AppendEmpty()
-		newVal.SetStr(impacted.Id)
-		for _, req := range impacted.Requirements {
-			newReq := requirements.AppendEmpty()
-			newReq.SetStr(req)
-		}
+	if enrichRes.Compliance.Remediation != nil {
+		attrs.PutStr("remediation.desc", *enrichRes.Compliance.Remediation)
+	}
+
+	for _, req := range enrichRes.Compliance.Requirements {
+		newReq := requirements.AppendEmpty()
+		newReq.SetStr(req)
+	}
+	for _, std := range enrichRes.Compliance.Standards {
+		newStd := standards.AppendEmpty()
+		newStd.SetStr(std)
 	}
 
 	return nil

@@ -1,0 +1,68 @@
+receivers:
+  webhookevent:
+    endpoint: 0.0.0.0:8088
+    read_timeout: "500ms"
+    path: "/eventsource/receiver"
+    health_path: "/eventreceiver/healthcheck"
+    split_logs_at_newline: false
+
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+  truthbeam:
+    endpoint: "http://compass:8081"
+    tls:
+      insecure: true
+  # For logs that are received from or something similar filelog instead of OTLP.
+  # These are expected to be in OCSF format before entering the pipeline.
+  transform/ocsf:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        conditions:
+          - body != nil and Substring(body, 0, 2) == "{\""
+        statements:
+          - merge_maps(cache, ParseJSON(body), "upsert")
+          - set(attributes["evidence.id"], cache["metadata"]["uid"])
+          - set(attributes["policy.id"], cache["policy"]["uid"])
+          - set(attributes["policy.decision"], cache["status"])
+          - set(attributes["policy.source"], cache["metadata"]["product"]["name"])
+          - set(attributes["category.id"], cache["category_uid"])
+          - set(attributes["class.id"], cache["class_uid"])
+          - set(observed_time, Now()) where observed_time_unix_nano == 0
+          - set(time, observed_time) where time_unix_nano == 0
+          - flatten(cache, "")
+          - merge_maps(attributes, cache, "upsert")
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlphttp/logs:
+    endpoint: "http://loki:3100/otlp"
+    tls:
+      insecure: true
+  awss3/logs:
+    s3uploader:
+      region: 'us-east-1'
+      s3_bucket: 'otel-data-backup'
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+    metrics:
+      receivers: [ otlp ]
+      processors: [ batch ]
+      exporters: [ debug ]
+    logs/analysis_pipeline:
+      receivers: [ webhookevent, otlp ]
+      processors: [ batch, transform/ocsf, truthbeam ]
+      exporters: [ debug, otlphttp/logs ]

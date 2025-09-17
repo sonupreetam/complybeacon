@@ -16,7 +16,7 @@ type truthBeamProcessor struct {
 	telemetry component.TelemetrySettings
 	config    *Config
 
-	log *zap.Logger
+	logger *zap.Logger
 
 	client *client.Client
 
@@ -39,7 +39,7 @@ func newTruthBeamProcessor(conf component.Config, set processor.Settings) (*trut
 	return &truthBeamProcessor{
 		config:    cfg,
 		telemetry: set.TelemetrySettings,
-		log:       set.Logger,
+		logger:    set.Logger,
 		client:    cl,
 	}, nil
 }
@@ -59,7 +59,7 @@ func (t *truthBeamProcessor) processLogs(ctx context.Context, ld plog.Logs) (plo
 				if err != nil {
 					// We don't want to return an error here to ensure the evidence
 					// is not dropped. It will just be uncategorized.
-					t.log.Error(err.Error())
+					t.logger.Error("failed to apply attributes", zap.Error(err))
 				}
 			}
 		}

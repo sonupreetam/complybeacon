@@ -6,16 +6,17 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/ossf/gemara/layer2"
+	"github.com/ossf/gemara/layer4"
 
-	compass "github.com/complytime/complybeacon/compass/service"
-	"github.com/complytime/complybeacon/compass/transformer"
-	"github.com/complytime/complybeacon/compass/transformer/factory"
+	"github.com/complytime/complybeacon/compass/mapper"
+	"github.com/complytime/complybeacon/compass/mapper/factory"
 )
 
-func NewScopeFromCatalogPath(catalogPath string) (compass.Scope, error) {
+func NewScopeFromCatalogPath(catalogPath string) (mapper.Scope, error) {
 	cleanedPath := filepath.Clean(catalogPath)
 	catalogData, err := os.ReadFile(cleanedPath)
 	if err != nil {
@@ -28,7 +29,7 @@ func NewScopeFromCatalogPath(catalogPath string) (compass.Scope, error) {
 		return nil, err
 	}
 
-	return compass.Scope{
+	return mapper.Scope{
 		layer2Catalog.Metadata.Id: layer2Catalog,
 	}, nil
 }
@@ -48,12 +49,10 @@ type PluginConfig struct {
 	EvaluationsDir string `json:"evaluations-dir"`
 }
 
-// TODO: This need to be easier to fallback to more generic processing
-
-func NewTransformerSet(config *Config) (transformer.Set, error) {
-	pluginSet := make(transformer.Set)
+func NewMapperSet(config *Config) (mapper.Set, error) {
+	pluginSet := make(mapper.Set)
 	for _, pluginConf := range config.Plugins {
-		transformerId := transformer.ID(pluginConf.Id)
+		transformerId := mapper.ID(pluginConf.Id)
 		if pluginConf.EvaluationsDir == "" {
 			log.Printf("Plugin %s has no evaluations, skipping...", transformerId)
 			continue
@@ -71,7 +70,7 @@ func NewTransformerSet(config *Config) (transformer.Set, error) {
 			return pluginSet, fmt.Errorf("evaluations directory %s for plugin %s is not a directory", pluginConf.EvaluationsDir, pluginConf.Id)
 		}
 
-		tfmr, err := NewTransformerFromDir(transformerId, pluginConf.EvaluationsDir)
+		tfmr, err := NewMapperFromDir(transformerId, pluginConf.EvaluationsDir)
 		if err != nil {
 			return pluginSet, fmt.Errorf("unable to load configuration for %s: %w", pluginConf.Id, err)
 		}
@@ -80,8 +79,8 @@ func NewTransformerSet(config *Config) (transformer.Set, error) {
 	return pluginSet, nil
 }
 
-func NewTransformerFromDir(pluginID transformer.ID, evaluationsPath string) (transformer.Transformer, error) {
-	tfmr := factory.TransformerByID(pluginID)
+func NewMapperFromDir(pluginID mapper.ID, evaluationsPath string) (mapper.Mapper, error) {
+	mpr := factory.MapperByID(pluginID)
 	err := filepath.Walk(evaluationsPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -96,14 +95,18 @@ func NewTransformerFromDir(pluginID transformer.ID, evaluationsPath string) (tra
 			return err
 		}
 
-		var evaluation transformer.EvaluationPlan
+		var evaluation []layer4.AssessmentPlan
 		err = yaml.Unmarshal(content, &evaluation)
 		if err != nil {
 			return err
 		}
 
-		tfmr.AddEvaluationPlan(evaluation)
+		extension := filepath.Ext(info.Name())
+		nameWithoutExt := strings.TrimSuffix(info.Name(), extension)
+
+		// FIXME: Increase robustness here instead of relying on the filename.
+		mpr.AddEvaluationPlan(nameWithoutExt, evaluation)
 		return nil
 	})
-	return tfmr, err
+	return mpr, err
 }

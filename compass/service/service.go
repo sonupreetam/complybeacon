@@ -6,21 +6,22 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/complytime/complybeacon/compass/api"
-	"github.com/complytime/complybeacon/compass/transformer"
-	"github.com/complytime/complybeacon/compass/transformer/plugins/basic"
+
+	"github.com/complytime/complybeacon/compass/mapper"
+	"github.com/complytime/complybeacon/compass/mapper/plugins/basic"
 )
 
 // Service struct to hold dependencies if needed
 type Service struct {
-	transformers transformer.Set
-	scope        Scope
+	set   mapper.Set
+	scope mapper.Scope
 }
 
 // NewService initializes a new Service instance.
-func NewService(transformers transformer.Set, scope Scope) *Service {
+func NewService(transformers mapper.Set, scope mapper.Scope) *Service {
 	return &Service{
-		transformers: transformers,
-		scope:        scope,
+		set:   transformers,
+		scope: scope,
 	}
 }
 
@@ -34,12 +35,12 @@ func (s *Service) PostV1Enrich(c *gin.Context) {
 		return
 	}
 
-	transformationPlugin, ok := s.transformers[transformer.ID(req.Evidence.Source)]
+	mapperPlugin, ok := s.set[mapper.ID(req.Evidence.Source)]
 	if !ok {
 		// Use fallback
-		transformationPlugin = basic.NewBasicTransformer()
+		mapperPlugin = basic.NewBasicMapper()
 	}
-	enrichedResponse := Enrich(req.Evidence, transformationPlugin, s.scope)
+	enrichedResponse := enrich(req.Evidence, mapperPlugin, s.scope)
 
 	c.JSON(http.StatusOK, enrichedResponse)
 }
@@ -52,4 +53,13 @@ func sendCompassError(c *gin.Context, code int32, message string) {
 		Message: message,
 	}
 	c.JSON(int(code), compassErr)
+}
+
+// Enrich the raw evidence with risk attributes based on `gemara` semantics.
+func enrich(rawEnv api.RawEvidence, attributeMapper mapper.Mapper, scope mapper.Scope) api.EnrichmentResponse {
+	compliance, status := attributeMapper.Map(rawEnv, scope)
+	return api.EnrichmentResponse{
+		Compliance: compliance,
+		Status:     status,
+	}
 }

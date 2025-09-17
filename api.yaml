@@ -44,14 +44,9 @@ components:
     EnrichmentRequest:
       type: object
       properties:
-        summary:
-          type: string
-          description: A summary of the conformance assertion.
         evidence:
           $ref: '#/components/schemas/RawEvidence'
       required:
-        - claimId
-        - timestamp
         - evidence
     RawEvidence:
       type: object
@@ -59,6 +54,12 @@ components:
         id:
           type: string
           description: Unique identifier for the raw evidence.
+        class_id:
+          type: integer
+          description: A event class id for raw data OCSF schema
+        category_id:
+          type: integer
+          description: A category ID for raw data OCSF schema
         timestamp:
           type: string
           format: date-time
@@ -72,163 +73,95 @@ components:
         decision:
           type: string
           description: The decision made by the policy engine (e.g., "compliant", "non-compliant").
-        details:
+        rawData:
           type: string
           format: json
           description: Raw JSON output from the policy engine.
-        resource:
-          $ref: '#/components/schemas/Resource'
       required:
         - id
         - timestamp
         - source
         - policyId
         - decision
-        - details
-        - resource
-    Metadata:
-      type: object
-      properties:
-        id:
-          type: string
-          description: Unique identifier for the metadata.
-        timestamp:
-          type: string
-          format: date-time
-          description: The timestamp associated with the metadata.
-        source:
-          type: string
-          description: The source of the metadata.
-        policyId:
-          type: string
-          description: The ID of the policy related to the metadata.
-        decision:
-          type: string
-          description: The decision associated with the metadata.
-      required:
-        - id
-        - timestamp
-        - source
-        - policyId
-        - decision
-    Resource:
-      type: object
-      properties:
-        name:
-          type: string
-          description: The name of the resource.
-        uri:
-          type: string
-          description: Location of the resource
-      required:
-        - name
-        - uri
 
     EnrichmentResponse:
       type: object
       description: "Enriched compliance finding with risk attributes and threat mappings."
       properties:
-        result:
-          $ref: '#/components/schemas/Result'
-        impactedBaselines:
+        threats:
           type: array
           items:
-            $ref: '#/components/schemas/Baseline'
-        riskAssessment:
-          type: object
-          description: "Attributes from the Gemara logical model that quantify risk."
-          properties:
-            overallRiskScore:
-              type: number
-              description: "A calculated, quantitative score for the overall risk (e.g., 8.2)."
-            riskLevel:
-              $ref: '#/components/schemas/RiskLevel'
-            findingType:
-              type: string
-              description: "The type of compliance finding (e.g., policy_violation, misconfiguration)."
-            threat:
-              $ref: '#/components/schemas/Threat'
-        asset:
-          type: object
-          description: "Attributes providing business context for the affected asset."
-          properties:
-            criticality:
-              $ref: '#/components/schemas/AssetCriticality'
-            businessUnit:
-              type: string
-              description: "The business unit that owns the asset (e.g., finance, marketing)."
-            dataSensitivity:
-              type: string
-              description: "The type of sensitive data at risk (e.g., PII, PHI)."
+            $ref: '#/components/schemas/ThreatMapping'
+        compliance:
+          $ref: '#/components/schemas/Compliance'
+        status:
+          $ref: '#/components/schemas/Status'
       required:
-        - result
-        - impactedBaselines
-        - riskAssessment
-        - asset
+        - compliance
+        - status
 
-    Result:
-      type: string
-      enum:
-        - Passed
-        - Failed
-        - Needs Review
-      description: "The possible outcomes of an evaluation or assessment."
-
-    Baseline:
-      description: "Baselines impacted by policy."
+    Status:
       type: object
+      title: "Status"
+      description: "Compliance Result"
       properties:
-        id:
+        title:
           type: string
-          description: "Baseline identifier (e.g., OpenSSF, PCI DSS)."
+          enum:
+            - Unknown
+            - Pass
+            - Warning
+            - Fail
+            - Other
+          description: "Compliance status."
+        id:
+          type: integer
+          enum:
+            - 3
+            - 0
+            - 1
+            - 2
+            - 99
+          description: "Compliance status ID."
+      additionalProperties: false
+      required:
+        - title
+
+# Inspired by: https://schema.ocsf.io/1.5.0/objects/compliance
+    Compliance:
+      type: object
+      title: "Compliance"
+      description: "Compliance details from OCSF Security Control Profile."
+      properties:
+        benchmark:
+          type: string
+          description: "Benchmark or Security Control Catalog id"
+        control:
+          type: string
+          description: "The Security Control being evaluated"
+        category:
+          type: string
+          description: "The category a control framework pertains"
         requirements:
           type: array
           items:
             type: string
-            description: "Requirement IDs within the baseline (e.g., 7.2)."
-      required:
-        - id
-        - requirements
-
-    RiskLevel:
-      type: string
-      enum:
-        - critical
-        - high
-        - medium
-        - low
-      description: "A categorical tag for the risk level, based on the overall risk score."
-
-    AssetCriticality:
-      type: string
-      enum:
-        - mission_critical
-        - production
-        - staging
-        - development
-        - sandbox
-      description: "The business criticality of the affected asset."
-
-    Threat:
-      type: object
-      description: "A detailed threat object from the Gemara logical model."
-      properties:
-        id:
-          type: string
-          description: "A unique identifier for the threat (e.g., CCC.TH01)."
-        title:
-          type: string
-          description: "A human-readable title for the threat (e.g., Access Control is Misconfigured)."
-        description:
-          type: string
-          description: "A detailed description of the threat."
-        mitreMappings:
+          description: "Assessment requirements Id"
+        standards:
           type: array
           items:
-            $ref: '#/components/schemas/ThreatMapping'
+            type: string
+          description: "List of impacted compliance standards"
+        remediation:
+          type: string
+          description: "Optional remediation information"
+      additionalProperties: false
       required:
-        - id
-        - title
+        - control
+        - benchmark
+        - standards
+        - requirements
+        - category
 
     ThreatMapping:
       type: object

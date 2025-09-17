@@ -8,80 +8,58 @@ import (
 	"time"
 )
 
-// Defines values for AssetCriticality.
+// Defines values for StatusId.
 const (
-	Development     AssetCriticality = "development"
-	MissionCritical AssetCriticality = "mission_critical"
-	Production      AssetCriticality = "production"
-	Sandbox         AssetCriticality = "sandbox"
-	Staging         AssetCriticality = "staging"
+	N0  StatusId = 0
+	N1  StatusId = 1
+	N2  StatusId = 2
+	N3  StatusId = 3
+	N99 StatusId = 99
 )
 
-// Defines values for Result.
+// Defines values for StatusTitle.
 const (
-	Failed      Result = "Failed"
-	NeedsReview Result = "Needs Review"
-	Passed      Result = "Passed"
+	Fail    StatusTitle = "Fail"
+	Other   StatusTitle = "Other"
+	Pass    StatusTitle = "Pass"
+	Unknown StatusTitle = "Unknown"
+	Warning StatusTitle = "Warning"
 )
 
-// Defines values for RiskLevel.
-const (
-	Critical RiskLevel = "critical"
-	High     RiskLevel = "high"
-	Low      RiskLevel = "low"
-	Medium   RiskLevel = "medium"
-)
+// Compliance Compliance details from OCSF Security Control Profile.
+type Compliance struct {
+	// Benchmark Benchmark or Security Control Catalog id
+	Benchmark string `json:"benchmark"`
 
-// AssetCriticality The business criticality of the affected asset.
-type AssetCriticality string
+	// Category The category a control framework pertains
+	Category string `json:"category"`
 
-// Baseline Baselines impacted by policy.
-type Baseline struct {
-	// Id Baseline identifier (e.g., OpenSSF, PCI DSS).
-	Id           string   `json:"id"`
+	// Control The Security Control being evaluated
+	Control string `json:"control"`
+
+	// Remediation Optional remediation information
+	Remediation *string `json:"remediation,omitempty"`
+
+	// Requirements Assessment requirements Id
 	Requirements []string `json:"requirements"`
+
+	// Standards List of impacted compliance standards
+	Standards []string `json:"standards"`
 }
 
 // EnrichmentRequest defines model for EnrichmentRequest.
 type EnrichmentRequest struct {
 	Evidence RawEvidence `json:"evidence"`
-
-	// Summary A summary of the conformance assertion.
-	Summary *string `json:"summary,omitempty"`
 }
 
 // EnrichmentResponse Enriched compliance finding with risk attributes and threat mappings.
 type EnrichmentResponse struct {
-	// Asset Attributes providing business context for the affected asset.
-	Asset struct {
-		// BusinessUnit The business unit that owns the asset (e.g., finance, marketing).
-		BusinessUnit *string `json:"businessUnit,omitempty"`
+	// Compliance Compliance details from OCSF Security Control Profile.
+	Compliance Compliance `json:"compliance"`
 
-		// Criticality The business criticality of the affected asset.
-		Criticality *AssetCriticality `json:"criticality,omitempty"`
-
-		// DataSensitivity The type of sensitive data at risk (e.g., PII, PHI).
-		DataSensitivity *string `json:"dataSensitivity,omitempty"`
-	} `json:"asset"`
-	ImpactedBaselines []Baseline `json:"impactedBaselines"`
-
-	// Result The possible outcomes of an evaluation or assessment.
-	Result Result `json:"result"`
-
-	// RiskAssessment Attributes from the Gemara logical model that quantify risk.
-	RiskAssessment struct {
-		// FindingType The type of compliance finding (e.g., policy_violation, misconfiguration).
-		FindingType *string `json:"findingType,omitempty"`
-
-		// OverallRiskScore A calculated, quantitative score for the overall risk (e.g., 8.2).
-		OverallRiskScore *float32 `json:"overallRiskScore,omitempty"`
-
-		// RiskLevel A categorical tag for the risk level, based on the overall risk score.
-		RiskLevel *RiskLevel `json:"riskLevel,omitempty"`
-
-		// Threat A detailed threat object from the Gemara logical model.
-		Threat *Threat `json:"threat,omitempty"`
-	} `json:"riskAssessment"`
+	// Status Compliance Result
+	Status  Status           `json:"status"`
+	Threats *[]ThreatMapping `json:"threats,omitempty"`
 }
 
 // Error defines model for Error.
@@ -95,18 +73,23 @@ type Error struct {
 
 // RawEvidence defines model for RawEvidence.
 type RawEvidence struct {
+	// CategoryId A category ID for raw data OCSF schema
+	CategoryId *int `json:"category_id,omitempty"`
+
+	// ClassId A event class id for raw data OCSF schema
+	ClassId *int `json:"class_id,omitempty"`
+
 	// Decision The decision made by the policy engine (e.g., "compliant", "non-compliant").
 	Decision string `json:"decision"`
-
-	// Details Raw JSON output from the policy engine.
-	Details json.RawMessage `json:"details"`
 
 	// Id Unique identifier for the raw evidence.
 	Id string `json:"id"`
 
 	// PolicyId The ID of the policy that generated the evidence.
-	PolicyId string   `json:"policyId"`
-	Resource Resource `json:"resource"`
+	PolicyId string `json:"policyId"`
+
+	// RawData Raw JSON output from the policy engine.
+	RawData json.RawMessage `json:"rawData,omitempty"`
 
 	// Source The source of the raw evidence (e.g., policy engine name).
 	Source string `json:"source"`
@@ -115,33 +98,20 @@ type RawEvidence struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// Resource defines model for Resource.
-type Resource struct {
-	// Name The name of the resource.
-	Name string `json:"name"`
+// Status Compliance Result
+type Status struct {
+	// Id Compliance status ID.
+	Id *StatusId `json:"id,omitempty"`
 
-	// Uri Location of the resource
-	Uri string `json:"uri"`
+	// Title Compliance status.
+	Title StatusTitle `json:"title"`
 }
 
-// Result The possible outcomes of an evaluation or assessment.
-type Result string
+// StatusId Compliance status ID.
+type StatusId int
 
-// RiskLevel A categorical tag for the risk level, based on the overall risk score.
-type RiskLevel string
-
-// Threat A detailed threat object from the Gemara logical model.
-type Threat struct {
-	// Description A detailed description of the threat.
-	Description *string `json:"description,omitempty"`
-
-	// Id A unique identifier for the threat (e.g., CCC.TH01).
-	Id            string           `json:"id"`
-	MitreMappings *[]ThreatMapping `json:"mitreMappings,omitempty"`
-
-	// Title A human-readable title for the threat (e.g., Access Control is Misconfigured).
-	Title string `json:"title"`
-}
+// StatusTitle Compliance status.
+type StatusTitle string
 
 // ThreatIdentifier A specific threat technique or sub-technique.
 type ThreatIdentifier struct {

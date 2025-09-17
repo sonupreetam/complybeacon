@@ -1,4 +1,0 @@
-push:
-  listenAddress: 0.0.0.0:8083
-
-# Testing: curl -X POST http://localhost:8083/v1/push -H "Content-Type: application/json" -d @hack/sampledata/evidence.json

@@ -7,7 +7,7 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 )
 
-// Config defines configuration for the ComplianceLogProcessor.
+// Config defines configuration for the truthbeam processor.
 type Config struct {
 	ClientConfig confighttp.ClientConfig `mapstructure:",squash"` // squash ensures fields are correctly decoded in embedded struct.
 }
