@@ -1,6 +1,6 @@
 // DO NOT EDIT, this is an auto-generated file
 
-package client
+package proofwatch
 
 // A unique identifier for a specific audit or assessment.
 //

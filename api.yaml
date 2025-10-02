@@ -1,11 +1,11 @@
 # Assisted by: Gemini 2.5 Pro
 openapi: 3.0.0
 info:
-  title: C2P Service API
+  title: Compass Service API
   version: 0.1.0
   description: |
-    API for the Compliance-to-Policy (C2P) Service. This service provides control-based attribute enrichment for telemetry data,
-    leveraging internal domain logic and the C2P project's compliance knowledge.
+    API for the Compass service. This service provides control-based attribute enrichment for telemetry data,
+    leveraging internal domain logic and the Compass project's compliance knowledge.
     It's designed to be called by an OpenTelemetry Collector's custom processor to enrich logs, metrics, and traces.
 
 #security:
@@ -45,15 +45,12 @@ components:
       type: object
       properties:
         evidence:
-          $ref: '#/components/schemas/RawEvidence'
+          $ref: '#/components/schemas/Evidence'
       required:
         - evidence
-    RawEvidence:
+    Evidence:
       type: object
       properties:
-        id:
-          type: string
-          description: Unique identifier for the raw evidence.
         class_id:
           type: integer
           description: A event class id for raw data OCSF schema
@@ -70,6 +67,9 @@ components:
         policyId:
           type: string
           description: The ID of the policy that generated the evidence.
+        action:
+          type: string
+          description: The action taken by the policy enforcement point
         decision:
           type: string
           description: The decision made by the policy engine (e.g., "compliant", "non-compliant").
@@ -83,6 +83,7 @@ components:
         - source
         - policyId
         - decision
+        - action
 
     EnrichmentResponse:
       type: object
@@ -133,7 +134,7 @@ components:
       title: "Compliance"
       description: "Compliance details from OCSF Security Control Profile."
       properties:
-        benchmark:
+        catalog:
           type: string
           description: "Benchmark or Security Control Catalog id"
         control:
@@ -158,7 +159,7 @@ components:
       additionalProperties: false
       required:
         - control
-        - benchmark
+        - catalog
         - standards
         - requirements
         - category

@@ -41,9 +41,9 @@ processors:
           - set(time, observed_time) where log.time_unix_nano == 0
           - flatten(attributes, "")
           # Custom required attributes for truth beam
-          - set(attributes["evidence.id"], attributes["metadata.uid"])
           - set(attributes["policy.id"], attributes["policy.uid"])
-          - set(attributes["policy.decision"], attributes["status"])
+          - set(attributes["policy.evaluation.status"], attributes["status"])
+          - set(attributes["policy.enforcement.action"], attributes["action"])
           - set(attributes["policy.source"], attributes["metadata.product.name"])
           - set(attributes["category.id"], attributes["category_uid"])
           - set(attributes["class.id"], attributes["class_uid"])

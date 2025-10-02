@@ -1,0 +1,186 @@
+groups:
+  - id: registry.policy
+    type: attribute_group
+    display_name: Policy and Compliance Evidence Attributes
+    brief: >
+      This group describes attributes specific to policy decision logs. This attributes are inspired
+      by the OCSF Policy object and the `gemara` model.
+    attributes:
+      - id: policy.id
+        type: string
+        stability: development
+        brief: >
+          The identifier for the policy that was applied.
+        requirement_level: required
+        examples: ["branch-protection-123"]
+      - id: policy.name
+        type: string
+        stability: development
+        brief: >
+          The human-readable name of the policy
+        requirement_level: recommended
+        examples: ["S3 Bucket Check"]
+      - id: policy.source
+        type: string
+        stability: development
+        brief: >
+          The identifier for the source of the policy audit log.
+        note:
+          This should identify the policy engine or assessment tool.
+        examples:
+          ["conforma", "opa-gatekeeper", "kyverno"]
+        requirement_level: required
+      - id: policy.evaluation.status
+        type: string
+        stability: development
+        brief: >
+          The outcome of the policy evaluation (e.g., "deny", "allow").
+        examples: [ "pass", "fail", "error" ]
+        requirement_level: required
+      - id: policy.status.detail
+        type: string
+        stability: development
+        brief: >
+          Add contextual details around the policy status.
+        requirement_level: opt_in
+        examples: ["The policy evaluation failed due to a missing attribute."]
+      - id: policy.evaluation.subject.type
+        type: string
+        stability: development
+        brief: >
+          The subject type or resource the policy was applied to.
+        requirement_level: recommended
+        examples: ["k8s.pod", "k8s.service", "gcp.compute.instance"]
+      - id: policy.evaluation.subject.id
+        type: string
+        stability: development
+        brief: >
+          The subject id or resource the policy was applied to.
+        requirement_level: recommended
+        examples: ["user-service-7b5f9c6d8-xyz"]
+      - id: policy.enforcement.status
+        type: string
+        stability: development
+        brief: >
+          The outcome of the policy enforcement.
+        examples: [ "success", "fail", "error" ]
+        note: |
+          This is required if the policy enforcement action is not "audit".
+      - id: policy.enforcement.action
+        type: string
+        stability: development
+        brief: >
+          The action take by the policy enforcement.
+        examples: [ "block", "mutate", "audit" ]
+        requirement_level: required
+  - id: registry.compliance
+    type: attribute_group
+    display_name: Compliance Evidence Attributes
+    brief: >
+      This group describes attributes specific compliance audit logs. The attributes are inspired by
+      the OCSF Compliance Finding object.
+    attributes:
+      - id: compliance.status
+        type: string
+        stability: development
+        brief: >
+          The normalized status identifier of the compliance check.
+        examples:
+          [
+            "Unknown",
+            "Pass",
+            "Warning",
+            "Fail",
+            "Other",
+          ]
+        requirement_level: required
+      - id: compliance.audit.id
+        type: string
+        stability: development
+        brief: >
+          A unique identifier for a specific audit or assessment.
+        examples:
+          ["my_audit_id"]
+        note: |
+          This aligns with a id field of a `gemara` Evaluation or Enforcement Plan. The goal to allow batching
+          and correlation of a set of findings.
+        requirement_level: recommended
+      - id: compliance.control.id
+        type: string
+        stability: development
+        brief: >
+          The unique identifier for the security control.
+        note: |
+          A control is a prescriptive, actionable set of 
+          specifications that strengthens security and compliance posture. This value may also reference
+          a specific control part.
+        examples:
+          [ "OSPS-QA-07.01" ]
+        requirement_level: required
+      - id: compliance.control.remediation.description
+        type: string
+        stability: development
+        brief: >
+          The description of the remediation strategy.
+        examples:
+          [
+            "This is a short description of the remediation strategy for this control.",
+          ]
+        requirement_level: opt_in
+      - id: compliance.control.catalog.id
+        type: string
+        stability: development
+        brief: >
+          The unique identifier for the security control catalog.
+        examples:
+          [
+            "OSPS-B",
+            "CCC",
+          ]
+        requirement_level: required
+      - id: compliance.requirements
+        type: string[]
+        stability: development
+        brief: >
+          The identifiers specific compliance requirements being evaluated.
+        examples:
+          [
+            ["AC-1", "PS-1", "2.1"]
+          ]
+        requirement_level: opt_in
+      - id: compliance.standards
+        type: string[]
+        stability: development
+        brief: >
+          The identifiers for regulatory or industry standards being evaluated for compliance.
+        examples:
+          [
+            ["800-53", "SSDF", "CRA"]
+          ]
+        requirement_level: opt_in
+      - id: compliance.category
+        type: string
+        stability: development
+        brief: >
+          The category a control framework pertains.
+        examples:
+          [
+            "Access Control",
+            "Quality",
+          ]
+        requirement_level: recommended
+      - id: compliance.risk.level
+        type: string
+        stability: development
+        brief: >
+          The risk level associated with non-compliance.
+        examples:
+          [
+            "info",
+            "low",
+            "high",
+            "medium",
+            "critical",
+            "other"
+          ]
+        requirement_level: opt_in

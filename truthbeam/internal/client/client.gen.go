@@ -35,8 +35,8 @@ const (
 
 // Compliance Compliance details from OCSF Security Control Profile.
 type Compliance struct {
-	// Benchmark Benchmark or Security Control Catalog id
-	Benchmark string `json:"benchmark"`
+	// Catalog Benchmark or Security Control Catalog id
+	Catalog string `json:"catalog"`
 
 	// Category The category a control framework pertains
 	Category string `json:"category"`
@@ -56,7 +56,7 @@ type Compliance struct {
 
 // EnrichmentRequest defines model for EnrichmentRequest.
 type EnrichmentRequest struct {
-	Evidence RawEvidence `json:"evidence"`
+	Evidence Evidence `json:"evidence"`
 }
 
 // EnrichmentResponse Enriched compliance finding with risk attributes and threat mappings.
@@ -78,8 +78,11 @@ type Error struct {
 	Message string `json:"message"`
 }
 
-// RawEvidence defines model for RawEvidence.
-type RawEvidence struct {
+// Evidence defines model for Evidence.
+type Evidence struct {
+	// Action The action taken by the policy enforcement point
+	Action string `json:"action"`
+
 	// CategoryId A category ID for raw data OCSF schema
 	CategoryId *int `json:"category_id,omitempty"`
 
@@ -88,9 +91,6 @@ type RawEvidence struct {
 
 	// Decision The decision made by the policy engine (e.g., "compliant", "non-compliant").
 	Decision string `json:"decision"`
-
-	// Id Unique identifier for the raw evidence.
-	Id string `json:"id"`
 
 	// PolicyId The ID of the policy that generated the evidence.
 	PolicyId string `json:"policyId"`

@@ -77,13 +77,13 @@ ComplyBeacon is designed to be a flexible toolkit. Its components can be used in
 
 ### 1. ProofWatch
 
-**Purpose**: A helper library that acts as a "log bridge" for security events. Its purpose is to take pre-normalized, OCSF-compliant evidence and emit it to an OpenTelemetry Collector as a standardized log stream.
+**Purpose**: An instrumentation library to normalize for policy decision events. Its purpose is to take pre-normalized, OCSF-compliant evidence and emit it to an OpenTelemetry Collector as a standardized log stream.
 
 **Key Responsibilities**:
 * Converts OCSF-formatted data into a standardized OpenTelemetry log record.
 * Emits this log record to the OpenTelemetry Collector using the OTLP (OpenTelemetry Protocol).
 
-`proofwatch` attributes defined [here](./ATTRIBUTES.md)
+`proofwatch` attributes defined [here](./attributes)
 
 _Example code snippet_
 ```go

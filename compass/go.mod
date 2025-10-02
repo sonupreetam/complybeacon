@@ -8,7 +8,7 @@ require (
 	github.com/getkin/kin-openapi v0.132.0
 	github.com/gin-gonic/gin v1.10.1
 	github.com/goccy/go-yaml v1.18.0
-	github.com/ossf/gemara v0.0.0-00010101000000-000000000000
+	github.com/ossf/gemara v0.9.0
 )
 
 require (
@@ -16,7 +16,7 @@ require (
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
-	github.com/defenseunicorns/go-oscal v0.6.3 // indirect
+	github.com/defenseunicorns/go-oscal v0.7.0 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
@@ -65,6 +65,3 @@ require (
 )
 
 tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
-
-// Points to experiments/oscal-transformation branch (temporarily)
-replace github.com/ossf/gemara => github.com/jpower432/sci v0.0.0-20250828223210-15f2a5532714

@@ -1,0 +1,22 @@
+// DO NOT EDIT, this is an auto-generated file
+
+package {{ params.package_name }}
+
+{% for root_ns in ctx %}
+    {% for attr in root_ns.attributes | rejectattr("name", "in", params.excluded_attributes) %}
+        {% set const_name = attr.name | screaming_snake_case %}
+        {% set safe_note = attr.note | replace('<', '[') | replace('>', ']') | trim %}
+        {% set safe_brief = attr.brief | replace('<', '[') | replace('>', ']') | trim %}
+        {% set full_comment = safe_brief %}
+        {% if safe_note %}
+            {% set full_comment = full_comment + "\n\nNotes:\n" + safe_note %}
+        {% endif %}
+        {% if attr.deprecated %}
+            {% set safe_deprecated = attr.deprecated | replace('\n', ' ') | replace('"', '') | trim %}
+            {% set full_comment = full_comment + "\n\nDeprecated: " + safe_deprecated %}
+        {% endif %}
+{{ full_comment | comment }}
+const {{ const_name }} = "{{ attr.name }}"
+
+    {% endfor %}
+{% endfor %}

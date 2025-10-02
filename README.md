@@ -16,7 +16,7 @@ ComplyBeacon is a policy-driven observability toolkit composed of four main comp
 
 ### 1. ProofWatch
 
-A client-side library that accepts and emits pre-normalized, OCSF-compliant compliance evidence as an OpenTelemetry log stream, while also instrumenting metrics for real-time observability.
+A instrumentation library that accepts and emits pre-normalized compliance evidence as an OpenTelemetry log stream, while also instrumenting metrics for real-time observability.
 
 ### 2. Beacon
 
@@ -28,7 +28,7 @@ A custom OpenTelemetry Collector processor that enriches log records with compli
 
 ### 4. Compass
 
-A central service that provides enrichment data to TruthBeam, tagging the evidence with additional context like risk, threat, and regulatory information.
+A central enrichment service that provides risk, threat, and compliance framework attributes based on policy lookup data.
 
 #### Supported Compass Mappers
 
@@ -55,5 +55,15 @@ Follow these steps to deploy the infrastructure and test the pipeline.
 ## Project Design
 
 For additional details on the planned design and roadmap, see [`DESIGN.md`](./docs/DESIGN.md).
+
+## Updating the Semantic Conventions
+
+Update semantic convention under `model/`
+
+Validate with `make weaver-check`
+
+Update docs and code:
+`make weaver-docsgen`
+`make weaver-codegen`
 
 ---

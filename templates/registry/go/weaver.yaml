@@ -1,0 +1,22 @@
+# Whitespace control settings to simplify the definition of templates
+whitespace_control:
+  trim_blocks: true
+  lstrip_blocks: true
+
+comment_formats:
+  go:
+    format: markdown
+    prefix: "// "
+    trim: true
+    remove_trailing_dots: true
+    escape_square_brackets: true
+default_comment_format: go
+
+params:
+  package_name: ""
+  excluded_attributes: []
+
+templates:
+  - pattern: attributes.go.j2
+    filter: semconv_grouped_attributes($params)
+    application_mode: single

@@ -1,0 +1,24 @@
+groups:
+  - id: entity.beacon.evidence
+    name: beacon.evidence
+    type: entity
+    stability: development
+    brief: This entity represents attributes for a complete evidence log
+    attributes:
+      - ref: policy.id
+      - ref: policy.name
+      - ref: policy.source
+      - ref: policy.evaluation.status
+      - ref: policy.status.detail
+      - ref: policy.evaluation.subject.type
+      - ref: policy.evaluation.subject.id
+      - ref: policy.enforcement.status
+      - ref: compliance.status
+      - ref: compliance.audit.id
+      - ref: compliance.control.id
+      - ref: compliance.control.remediation.description
+      - ref: compliance.control.catalog.id
+      - ref: compliance.requirements
+      - ref: compliance.standards
+      - ref: compliance.category
+      - ref: compliance.risk.level

@@ -28,8 +28,8 @@ const (
 
 // Compliance Compliance details from OCSF Security Control Profile.
 type Compliance struct {
-	// Benchmark Benchmark or Security Control Catalog id
-	Benchmark string `json:"benchmark"`
+	// Catalog Benchmark or Security Control Catalog id
+	Catalog string `json:"catalog"`
 
 	// Category The category a control framework pertains
 	Category string `json:"category"`

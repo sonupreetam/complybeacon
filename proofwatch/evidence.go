@@ -8,7 +8,9 @@ import ocsf "github.com/Santiago-Labs/go-ocsf/ocsf/v1_5_0"
 type Evidence struct {
 	ocsf.ScanActivity `json:",inline"`
 	// From the security-control profile
-	Policy   ocsf.Policy `json:"policy" parquet:"policy"`
-	Action   *string     `json:"action,omitempty" parquet:"action,optional"`
-	ActionID *int32      `json:"action_id,omitempty" parquet:"action_id,optional"`
+	Policy        ocsf.Policy `json:"policy" parquet:"policy"`
+	Action        *string     `json:"action,omitempty" parquet:"action,optional"`
+	ActionID      *int32      `json:"action_id,omitempty" parquet:"action_id,optional"`
+	Disposition   *string     `json:"disposition,omitempty" parquet:"action,optional"`
+	DispositionID *int32      `json:"disposition_id,omitempty" parquet:"action_id,optional"`
 }

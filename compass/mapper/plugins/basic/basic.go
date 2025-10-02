@@ -115,7 +115,7 @@ func (m *Mapper) Map(evidence api.RawEvidence, scope mapper.Scope) (api.Complian
 				}
 
 				compliance := api.Compliance{
-					Benchmark:    catalogId,
+					Catalog:      catalogId,
 					Control:      procedureInfo.RequirementID,
 					Requirements: requirements,
 					Standards:    standards,

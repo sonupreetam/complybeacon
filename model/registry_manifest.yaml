@@ -1,0 +1,11 @@
+name: beacon
+description: This registry contains the semantic conventions for the Beacon distro.
+semconv_version: 0.1.0
+schema_base_url: https://complybeacon.com/schemas/ # field not used
+dependencies:
+  - name: otel
+    registry_path: https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.37.0.zip[model]
+
+imports:
+  events:
+    - log.*

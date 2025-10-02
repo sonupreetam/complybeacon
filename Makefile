@@ -76,6 +76,35 @@ deploy: ## Deploy infra
 	podman-compose -f compose.yaml up
 .PHONY: deploy
 
+#------------------------------------------------------------------------------
+# Generate
+#------------------------------------------------------------------------------
+
+api-codegen: ## Runs go generate for all the modules
+	@for m in $(MODULES); do \
+		(cd $$m && go generate ./...); \
+		if [ $$? -ne 0 ]; then \
+			echo "Codegen failed for module: $$m"; \
+			exit 1; \
+		fi; \
+	done
+.PHONY: api-codegen
+
+#------------------------------------------------------------------------------
+# Weaver - See documenation for more information https://github.com/open-telemetry/weaver?tab=readme-ov-file
+#------------------------------------------------------------------------------
+
+weaver-docsgen: ## Generate docs
+	weaver registry generate -r model --templates "https://github.com/open-telemetry/semantic-conventions/archive/refs/tags/v1.34.0.zip[templates]" markdown docs
+.PHONY: weaver-docsgen
+
+weaver-codegen: ## Generate Go code
+	weaver registry generate -r model --templates templates go --param package_name="proofwatch" proofwatch
+	weaver registry generate -r model --templates templates go --param package_name="client" truthbeam/internal/client
+.PHONY: weaver-codegen
+
+weaver-check: ## Model schema check
+	weaver registry check -r model
 # ------------------------------------------------------------------------------
 # Help Target
 # Prints a friendly help message.
