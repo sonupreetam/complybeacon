@@ -4,6 +4,7 @@ on:
     branches:
       - 'main'
       - 'test-workflows'  # Add your test branch
+      - 'test-service-containers'  # Your current test branch
   pull_request:
     branches:
       - 'main'
