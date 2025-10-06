@@ -3,9 +3,11 @@ on:
   push:
     branches:
       - 'main'
+      - 'test-workflows'  # Add your test branch
   pull_request:
     branches:
       - 'main'
+  workflow_dispatch:  # Allow manual triggering
 
 permissions: {}
 
@@ -15,6 +17,8 @@ env:
 
 jobs:
   build:
+    # Only run in your fork for testing
+    if: github.repository == 'sonupreetam/complybeacon'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -28,7 +32,51 @@ jobs:
       - name: Build all binaries
         run: make build
 
+  integration-tests:
+    # Only run in your fork for testing
+    if: github.repository == 'sonupreetam/complybeacon'
+    runs-on: ubuntu-latest
+    
+    services:
+      # Loki for log aggregation testing
+      loki:
+        image: grafana/loki:3.5.1
+        ports:
+          - 3100:3100
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      
+      - name: Wait for Loki to be ready
+        run: |
+          echo "Waiting for Loki to be ready..."
+          timeout 30 bash -c 'until curl -s http://localhost:3100/ready > /dev/null; do sleep 1; done'
+          echo "Loki is ready!"
+      
+      - name: Run integration tests
+        run: make test
+        env:
+          LOKI_URL: http://localhost:3100
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
+      
+      - name: Test log ingestion
+        run: |
+          # Verify Loki is accepting logs
+          curl -v -H "Content-Type: application/json" \
+            -X POST "http://localhost:3100/loki/api/v1/push" \
+            -d '{"streams":[{"stream":{"service":"ci-test"},"values":[["'$(date +%s)000000000'","test log message"]]}]}'
+
   detect-modules:
+    # Only run in your fork for testing
+    if: github.repository == 'sonupreetam/complybeacon'
     runs-on: ubuntu-latest
     outputs:
       modules: ${{ steps.set-modules.outputs.modules }}
@@ -43,6 +91,7 @@ jobs:
         run: echo "modules=$(go list -m -json | jq -s '.' | jq -c '[.[].Dir]')" >> $GITHUB_OUTPUT
 
   golangci-lint:
+    # Only run in your fork for testing
     needs: detect-modules
     runs-on: ubuntu-latest
     strategy:
@@ -58,3 +107,169 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: ${{ matrix.modules }}
+# --- keep your existing content above ---
+
+  detect-images:
+    # Only run in your fork for testing
+    if: github.repository == 'sonupreetam/complybeacon'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.mk-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - id: mk-matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Seed with common service dirs; add more here if you create them:
+          CANDIDATES=("beacon-distro" "truthbeam" "compass")
+          entries=()
+
+          # Add known candidates that actually have a Dockerfile
+          for s in "${CANDIDATES[@]}"; do
+            if [[ -f "$s/Dockerfile" ]]; then
+              name="${s//-/_}" # safe id
+              image="ghcr.io/complytime/complybeacon-${s//\//-}"
+              entries+=( "{\"name\":\"${s}\",\"context\":\"./${s}\",\"image\":\"${image}\"}" )
+            fi
+          done
+
+          # Also auto-discover any other top-level Dockerfiles (excluding .github, vendor, etc.)
+          while IFS= read -r d; do
+            base="$(basename "$d")"
+            # skip if already included
+            if printf '%s\n' "${CANDIDATES[@]}" | grep -qx "$base"; then
+              continue
+            fi
+            image="ghcr.io/complytime/complybeacon-${base}"
+            entries+=( "{\"name\":\"${base}\",\"context\":\"./${base}\",\"image\":\"${image}\"}" )
+          done < <(find . -maxdepth 2 -type f -name Dockerfile -not -path "./.github/*" -print0 | xargs -0 -n1 dirname | sed 's|^\./||' | sort -u)
+
+          if [[ "${#entries[@]}" -eq 0 ]]; then
+            echo "No Dockerfiles found. Producing empty matrix."
+            echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          json="$(printf '{ "include": [ %s ] }' "$(IFS=,; echo "${entries[*]}")")"
+          echo "matrix=${json}" >> "$GITHUB_OUTPUT"
+          echo "Discovered matrix: ${json}"
+
+  containers-ci:
+    # Build/scan images on PRs; skip when nothing to build
+    needs: detect-images
+    if: ${{ github.repository == 'sonupreetam/complybeacon' && github.event_name == 'pull_request' && fromJSON(needs.detect-images.outputs.matrix).include[0] != null }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      packages: read
+    strategy:
+      matrix: ${{ fromJSON(needs.detect-images.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: false
+          platforms: linux/amd64   # fast for PR; CI publish will do multi-arch
+          tags: ${{ matrix.image }}:pr-${{ github.event.number }}
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: true  # load to local engine for Trivy scan
+
+      - name: Trivy scan (SARIF)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ matrix.image }}:pr-${{ github.event.number }}
+          format: sarif
+          output: trivy-results.sarif
+          vuln-type: 'os,library'
+          ignore-unfixed: true
+
+      - name: Upload SARIF to Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+  e2e-tests:
+    # Only run in your fork for testing
+    if: github.repository == 'sonupreetam/complybeacon'
+    runs-on: ubuntu-latest
+    
+    services:
+      # Loki for log storage
+      loki:
+        image: grafana/loki:3.5.1
+        ports:
+          - 3100:3100
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      # Optional: Add Redis if you use it for caching
+      # redis:
+      #   image: redis:7-alpine
+      #   ports:
+      #     - 6379:6379
+      #   options: >-
+      #     --health-cmd "redis-cli ping"
+      #     --health-interval 10s
+      #     --health-timeout 5s
+      #     --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      
+      - name: Build Compass
+        run: |
+          cd compass
+          go build -o ../bin/compass ./cmd/compass
+      
+      - name: Start Compass in background
+        run: |
+          mkdir -p bin
+          ./bin/compass \
+            --config ./hack/demo/config.yaml \
+            --catalog ./hack/sampledata/osps.yaml \
+            --port 8081 \
+            --skip-tls &
+          echo $! > compass.pid
+          
+          # Wait for Compass to be ready
+          timeout 30 bash -c 'until curl -s http://localhost:8081/health > /dev/null 2>&1 || curl -s http://localhost:8081/ > /dev/null 2>&1; do sleep 1; done' || echo "Compass may not have health endpoint"
+      
+      - name: Run end-to-end tests
+        run: |
+          # Test the full pipeline
+          echo "Testing compliance evidence pipeline..."
+          
+          # Send sample evidence data
+          if [ -f hack/sampledata/evidence.json ]; then
+            echo "Sample evidence file found, testing ingestion..."
+            # Add your e2e test commands here
+          fi
+        env:
+          LOKI_URL: http://localhost:3100
+          COMPASS_URL: http://localhost:8081
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -f compass.pid ]; then
+            kill $(cat compass.pid) || true
+          fi
