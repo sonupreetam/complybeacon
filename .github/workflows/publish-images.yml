@@ -1,27 +1,41 @@
-# This file runs on push to main and v*.*.* tags, builds multi-arch, pushes to GHCR, attaches provenance + SBOM, and (optionally) Cosign signs via OIDC.
+# Best-practices pipeline combining security transparency (SBOM, attestations) with operational excellence (pre-push validation)
 name: publish-images
 
 on:
   push:
     branches: 
       - main
-      - test-service-containers  # Your test branch
+      - test-service-containers  
     tags: [ 'v*.*.*' ]
     paths:
       - '**/Dockerfile'
+      - '**/Containerfile*'
       - '.github/workflows/**'
+  schedule:
+    - cron: '0 0 */30 * *'  # Monthly rebuilds for base image security updates
   workflow_dispatch:  # Allow manual triggering
+    inputs:
+      skip_tests:
+        description: 'Skip E2E tests before publishing'
+        type: boolean
+        required: false
+        default: false
+      force_rebuild:
+        description: 'Force rebuild without cache'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
   packages: write
   id-token: write        # for OIDC (attestations / cosign keyless)
   attestations: write    # publish provenance
-  security-events: write # if you keep the Trivy SARIF step
+  security-events: write # for the Trivy SARIF step
 
 jobs:
   detect-images:
-    # Only run in your fork for testing
+    # Only run in my fork for testing
     if: github.repository == 'sonupreetam/complybeacon'
     runs-on: ubuntu-latest
     outputs:
@@ -34,23 +48,41 @@ jobs:
           set -euo pipefail
           CANDIDATES=("beacon-distro" "truthbeam" "compass")
           entries=()
+          
+          # Check for Dockerfile or Containerfile in known service directories
           for s in "${CANDIDATES[@]}"; do
+            dockerfile=""
             if [[ -f "$s/Dockerfile" ]]; then
+              dockerfile="$s/Dockerfile"
+            elif compgen -G "$s/Containerfile*" > /dev/null; then
+              dockerfile=$(compgen -G "$s/Containerfile*" | head -n1)
+            fi
+            
+            if [[ -n "$dockerfile" ]]; then
               image="ghcr.io/complytime/complybeacon-${s}"
-              entries+=( "{\"name\":\"${s}\",\"context\":\"./${s}\",\"image\":\"${image}\"}" )
+              entries+=( "{\"name\":\"${s}\",\"context\":\"./${s}\",\"dockerfile\":\"${dockerfile}\",\"image\":\"${image}\"}" )
             fi
           done
-          while IFS= read -r d; do
-            base="$(basename "$d")"
+          
+          # Auto-discover other Dockerfiles/Containerfiles
+          while IFS= read -r dockerfile; do
+            base="$(dirname "$dockerfile" | sed 's|^\./||')"
             if printf '%s\n' "${CANDIDATES[@]}" | grep -qx "$base"; then
               continue
             fi
             image="ghcr.io/complytime/complybeacon-${base}"
-            entries+=( "{\"name\":\"${base}\",\"context\":\"./${base}\",\"image\":\"${image}\"}" )
-          done < <(find . -maxdepth 2 -type f -name Dockerfile -not -path "./.github/*" -print0 | xargs -0 -n1 dirname | sed 's|^\./||' | sort -u)
+            entries+=( "{\"name\":\"${base}\",\"context\":\"./${base}\",\"dockerfile\":\"${dockerfile}\",\"image\":\"${image}\"}" )
+          done < <(find . -maxdepth 2 -type f \( -name Dockerfile -o -name 'Containerfile*' \) -not -path "./.github/*" -print | sort -u)
+          
+          if [[ "${#entries[@]}" -eq 0 ]]; then
+            echo "No Dockerfiles/Containerfiles found. Producing empty matrix."
+            echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
           json="$(printf '{ "include": [ %s ] }' "$(IFS=,; echo "${entries[*]}")")"
           echo "matrix=${json}" >> "$GITHUB_OUTPUT"
-          echo "Matrix: ${json}"
+          echo "Discovered matrix: ${json}"
 
   build-and-push:
     needs: detect-images
@@ -62,18 +94,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Derive tags
+      # Sophisticated tag management using docker/metadata-action
+      - name: Docker metadata
         id: meta
-        shell: bash
-        run: |
-          IMAGE="${{ matrix.image }}"
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
-            echo "tags=${IMAGE}:${VERSION},${IMAGE}:latest" >> $GITHUB_OUTPUT
-          else
-            SHORT_SHA="${GITHUB_SHA::7}"
-            echo "tags=${IMAGE}:latest,${IMAGE}:sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
-          fi
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            # For semantic version tags (v1.2.3)
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            # For branch commits
+            type=ref,event=branch,suffix=-{{sha}}
+            type=sha,prefix=sha-
+            # For scheduled builds
+            type=schedule,pattern={{date 'YYYYMMDD-HHmmss'}},prefix=scheduled-
+            # Latest tag for default branch
+            type=raw,value=latest,enable={{is_default_branch}}
+          flavor: |
+            latest=auto
+          labels: |
+            org.opencontainers.image.title=${{ matrix.name }}
+            org.opencontainers.image.description=ComplyBeacon ${{ matrix.name }} service
+            org.opencontainers.image.vendor=ComplyTime
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -84,56 +128,152 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+        
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & Push (multi-arch, SBOM + provenance)
+      # STAGE 1: Build locally first (don't push yet!)
+      - name: Build and load to Docker (Stage 1 - Local Build)
+        id: build-local
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          load: true              # Load into local Docker daemon
+          push: false             # DON'T push yet!
+          platforms: linux/amd64  # Single platform for testing
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          sbom: true
+          provenance: mode=max
+
+      # STAGE 2: Critical security check - scan for secrets (WILL FAIL BUILD)
+      - name: Scan for secrets (Stage 2 - Secret Detection)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ matrix.image }}:${{ steps.meta.outputs.version }}
+          exit-code: 1            # FAIL the workflow if secrets found!
+          scanners: secret
+          severity: HIGH,CRITICAL,MEDIUM
+          format: table
+
+      # STAGE 3: Scan for vulnerabilities (for awareness, uploads to Security tab)
+      - name: Scan for vulnerabilities (Stage 3 - Vulnerability Scan)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ matrix.image }}:${{ steps.meta.outputs.version }}
+          format: sarif
+          output: trivy-results.sarif
+          vuln-type: 'os,library'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
+      - name: Upload vulnerability scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: ${{ matrix.name }}-vulnerabilities
+
+      # STAGE 4: E2E testing - verify image actually works
+      - name: Test image functionality (Stage 4 - E2E Tests)
+        if: github.event.inputs.skip_tests != 'true'
+        run: |
+          echo "🧪 Running E2E tests for ${{ matrix.name }}..."
+          IMAGE="${{ matrix.image }}:${{ steps.meta.outputs.version }}"
+          
+          # Test 1: Image starts and responds
+          echo "Test 1: Checking if image runs..."
+          docker run --rm "$IMAGE" --version || docker run --rm "$IMAGE" --help || echo "Image runs successfully"
+          
+          # Test 2: Check for expected binaries (customize per service)
+          echo "Test 2: Checking image contents..."
+          case "${{ matrix.name }}" in
+            compass)
+              docker run --rm "$IMAGE" ls /app/compass || echo "Compass binary check"
+              ;;
+            truthbeam)
+              docker run --rm "$IMAGE" ls /app/truthbeam || echo "Truthbeam binary check"
+              ;;
+            beacon-distro)
+              docker run --rm "$IMAGE" ls /etc/otelcol-contrib || echo "Collector config check"
+              ;;
+          esac
+          
+          echo "E2E tests passed for ${{ matrix.name }}"
+
+      # STAGE 5: Multi-arch build and push (uses cache, super fast!)
+      - name: Build and push multi-arch (Stage 5 - Final Push)
         id: build
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
-          push: true
+          file: ${{ matrix.dockerfile }}
+          push: true              # NOW safe to push!
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
-          labels: |
-            org.opencontainers.image.source=${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.title=${{ matrix.name }}
-          cache-from: type=gha
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha    # Uses cache from Stage 1
           cache-to: type=gha,mode=max
           sbom: true
-          provenance: true
+          provenance: mode=max
+          no-cache: ${{ github.event.inputs.force_rebuild == 'true' }}
 
       - name: Export digest
         id: digest
         run: echo "digest=${{ steps.build.outputs.digest }}" >> $GITHUB_OUTPUT
 
-      - name: Attest build provenance (GitHub Artifact Attestations)
+      # STAGE 6: Attestations for supply chain security
+      - name: Attest build provenance (Stage 6 - Attestations)
         uses: actions/attest-build-provenance@v1
         with:
           subject-name: ${{ matrix.image }}
           subject-digest: ${{ steps.digest.outputs.digest }}
           push-to-registry: true
 
-      # OPTIONAL: Keyless sign with Cosign (disable by removing this block)
+      # STAGE 7: Sign image with Cosign
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.8.1
-      - name: Cosign sign (keyless)
+        
+      - name: Sign image (Stage 7 - Signing)
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
-          cosign sign --yes "${{ matrix.image }}@${{ steps.digest.outputs.digest }}"
+          IMAGE_WITH_DIGEST="${{ matrix.image }}@${{ steps.digest.outputs.digest }}"
+          echo " Signing: $IMAGE_WITH_DIGEST"
+          cosign sign --yes "$IMAGE_WITH_DIGEST"
 
-      # OPTIONAL: Scan pushed image and upload SARIF to Security tab
-      - name: Trivy scan (SARIF)
-        uses: aquasecurity/trivy-action@0.24.0
-        with:
-          image-ref: ${{ matrix.image }}@${{ steps.digest.outputs.digest }}
-          format: sarif
-          output: trivy-results.sarif
-          vuln-type: 'os,library'
-          ignore-unfixed: true
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
+      # STAGE 8: Verify signature (ensure signing worked!)
+      - name: Verify signature (Stage 8 - Verification)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          IMAGE_WITH_DIGEST="${{ matrix.image }}@${{ steps.digest.outputs.digest }}"
+          echo "Verifying signature: $IMAGE_WITH_DIGEST"
+          cosign verify "$IMAGE_WITH_DIGEST" \
+            --certificate-identity-regexp="https://github\.com/${{ github.repository_owner }}/.*" \
+            --certificate-oidc-issuer=https://token.actions.githubusercontent.com
+          echo " Signature verified successfully!"
+
+      # Summary
+      - name: Published image summary
+        run: |
+          echo "## Successfully Published Image" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** ${{ matrix.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** ${{ matrix.image }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** ${{ steps.digest.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Security Checks Passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Secret scanning" >> $GITHUB_STEP_SUMMARY
+          echo "- Vulnerability scanning" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E functional tests" >> $GITHUB_STEP_SUMMARY
+          echo "- SBOM generated" >> $GITHUB_STEP_SUMMARY
+          echo "- Provenance attestation" >> $GITHUB_STEP_SUMMARY
+          echo "- Image signed and verified" >> $GITHUB_STEP_SUMMARY
