@@ -68,7 +68,9 @@ jobs:
             
             if [[ -n "$dockerfile" ]]; then
               image="ghcr.io/complytime/complybeacon-${s}"
-              entries+=( "{\"name\":\"${s}\",\"context\":\"${context}\",\"dockerfile\":\"${dockerfile}\",\"image\":\"${image}\"}" )
+              # dockerfile path must be relative to repo root for docker/build-push-action
+              full_dockerfile_path="${context}/${dockerfile}"
+              entries+=( "{\"name\":\"${s}\",\"context\":\"${context}\",\"dockerfile\":\"${full_dockerfile_path}\",\"image\":\"${image}\"}" )
             fi
           done
           
@@ -93,7 +95,9 @@ jobs:
             fi
             
             image="ghcr.io/complytime/complybeacon-${base}"
-            entries+=( "{\"name\":\"${base}\",\"context\":\"${context}\",\"dockerfile\":\"${dockerfile}\",\"image\":\"${image}\"}" )
+            # dockerfile path must be relative to repo root for docker/build-push-action
+            full_dockerfile_path="${context}/${dockerfile}"
+            entries+=( "{\"name\":\"${base}\",\"context\":\"${context}\",\"dockerfile\":\"${full_dockerfile_path}\",\"image\":\"${image}\"}" )
           done < <(find . -maxdepth 3 -type f \( -name Dockerfile -o -name 'Containerfile*' \) -not -path "./.github/*" -print | sort -u)
           
           if [[ "${#entries[@]}" -eq 0 ]]; then
