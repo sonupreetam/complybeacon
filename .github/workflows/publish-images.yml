@@ -168,8 +168,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          sbom: true
-          provenance: mode=max
+          # Disable attestations for local build (incompatible with --load)
+          sbom: false
+          provenance: false
 
       # STAGE 2: Critical security check - scan for secrets (WILL FAIL BUILD)
       - name: Scan for secrets (Stage 2 - Secret Detection)
