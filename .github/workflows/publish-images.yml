@@ -52,27 +52,49 @@ jobs:
           # Check for Dockerfile or Containerfile in known service directories
           for s in "${CANDIDATES[@]}"; do
             dockerfile=""
+            context="./${s}"
+            
+            # Check in service root directory
             if [[ -f "$s/Dockerfile" ]]; then
-              dockerfile="$s/Dockerfile"
+              dockerfile="Dockerfile"
             elif compgen -G "$s/Containerfile*" > /dev/null; then
-              dockerfile=$(compgen -G "$s/Containerfile*" | head -n1)
+              local_file=$(compgen -G "$s/Containerfile*" | head -n1)
+              dockerfile="$(basename "$local_file")"
+            # Check in images/ subdirectory (for compass)
+            elif [[ -d "$s/images" ]] && compgen -G "$s/images/Containerfile*" > /dev/null; then
+              local_file=$(compgen -G "$s/images/Containerfile*" | head -n1)
+              dockerfile="images/$(basename "$local_file")"
             fi
             
             if [[ -n "$dockerfile" ]]; then
               image="ghcr.io/complytime/complybeacon-${s}"
-              entries+=( "{\"name\":\"${s}\",\"context\":\"./${s}\",\"dockerfile\":\"${dockerfile}\",\"image\":\"${image}\"}" )
+              entries+=( "{\"name\":\"${s}\",\"context\":\"${context}\",\"dockerfile\":\"${dockerfile}\",\"image\":\"${image}\"}" )
             fi
           done
           
           # Auto-discover other Dockerfiles/Containerfiles
-          while IFS= read -r dockerfile; do
-            base="$(dirname "$dockerfile" | sed 's|^\./||')"
+          while IFS= read -r fullpath; do
+            dir="$(dirname "$fullpath" | sed 's|^\./||')"
+            file="$(basename "$fullpath")"
+            
+            # Determine context (parent directory if in subdirectory like images/)
+            if [[ "$dir" == */images ]]; then
+              context="./${dir%/images}"
+              dockerfile="images/${file}"
+            else
+              context="./${dir}"
+              dockerfile="${file}"
+            fi
+            
+            # Skip if already in CANDIDATES
+            base="$(echo "$context" | sed 's|^\./||')"
             if printf '%s\n' "${CANDIDATES[@]}" | grep -qx "$base"; then
               continue
             fi
+            
             image="ghcr.io/complytime/complybeacon-${base}"
-            entries+=( "{\"name\":\"${base}\",\"context\":\"./${base}\",\"dockerfile\":\"${dockerfile}\",\"image\":\"${image}\"}" )
-          done < <(find . -maxdepth 2 -type f \( -name Dockerfile -o -name 'Containerfile*' \) -not -path "./.github/*" -print | sort -u)
+            entries+=( "{\"name\":\"${base}\",\"context\":\"${context}\",\"dockerfile\":\"${dockerfile}\",\"image\":\"${image}\"}" )
+          done < <(find . -maxdepth 3 -type f \( -name Dockerfile -o -name 'Containerfile*' \) -not -path "./.github/*" -print | sort -u)
           
           if [[ "${#entries[@]}" -eq 0 ]]; then
             echo "No Dockerfiles/Containerfiles found. Producing empty matrix."
