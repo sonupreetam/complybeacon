@@ -7,30 +7,49 @@ import (
 	"log"
 	"time"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	olog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/complytime/complybeacon/proofwatch/internal/metrics"
+)
+
+const (
+	// ScopeName is the instrumentation scope name.
+	ScopeName = "github.com/complytime/complybeacon/proofwatch"
 )
 
 type ProofWatch struct {
-	name          string
 	logger        olog.Logger
-	observer      *EvidenceObserver
+	tracer        trace.Tracer
+	observer      *metrics.EvidenceObserver
 	levelSeverity olog.Severity
 }
 
 // NewProofWatch creates a new ProofWatch instance with OpenTelemetry logging.
-func NewProofWatch(name string, meter metric.Meter) (*ProofWatch, error) {
-	observer, err := NewEvidenceObserver(meter)
+func NewProofWatch(opts ...OptionFunc) (*ProofWatch, error) {
+	cfg := config{
+		MeterProvider:  otel.GetMeterProvider(),
+		LoggerProvider: global.GetLoggerProvider(),
+		TracerProvider: otel.GetTracerProvider(),
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	meter := cfg.MeterProvider.Meter(ScopeName, metric.WithInstrumentationVersion(Version()))
+	observer, err := metrics.NewEvidenceObserver(meter)
 	if err != nil {
 		return nil, err
 	}
 	return &ProofWatch{
-		name:     name,
-		logger:   global.GetLoggerProvider().Logger("proofwatch"),
+		logger:   cfg.LoggerProvider.Logger(ScopeName, olog.WithInstrumentationVersion(Version())),
+		tracer:   cfg.TracerProvider.Tracer(ScopeName, trace.WithInstrumentationVersion(Version())),
 		observer: observer,
-		// TODO: Allow this value to be overridden
+		// Default severity
 		levelSeverity: olog.SeverityInfo,
 	}, nil
 }
@@ -42,6 +61,10 @@ func (w *ProofWatch) Log(ctx context.Context, evidence Evidence) error {
 
 // LogWithSeverity logs a policy event using OpenTelemetry's log API with a given severity level
 func (w *ProofWatch) LogWithSeverity(ctx context.Context, evidence Evidence, severity olog.Severity) error {
+
+	ctx, span := w.tracer.Start(ctx, "evidence.log_evidence")
+	defer span.End()
+
 	attrs := MapOCSFToAttributes(evidence)
 
 	jsonData, err := json.Marshal(evidence)
@@ -50,11 +73,15 @@ func (w *ProofWatch) LogWithSeverity(ctx context.Context, evidence Evidence, sev
 	}
 
 	record := olog.Record{}
-	record.SetEventName("beacon.policy.log")
 	record.SetSeverity(severity)
+	record.SetSeverityText(severity.String())
 	record.SetObservedTimestamp(time.Now())
+	// Set event time
+	record.SetTimestamp(time.UnixMilli(evidence.Time))
 	record.AddAttributes(ToLogKeyValues(attrs)...)
 	record.SetBody(olog.StringValue(string(jsonData))) // Retains the original body for flexibility.
+
+	span.AddEvent("evidence.logged", trace.WithAttributes(attrs...), trace.WithTimestamp(time.Now()))
 
 	w.logger.Emit(ctx, record)
 
@@ -171,4 +198,9 @@ func validateEvidenceFields(event Evidence) error {
 		return errors.New("the event is missing a policy status")
 	}
 	return nil
+}
+
+// Version is the current release version of Proofwatch
+func Version() string {
+	return "0.1.0"
 }

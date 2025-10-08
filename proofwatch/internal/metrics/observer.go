@@ -1,4 +1,4 @@
-package proofwatch
+package metrics
 
 import (
 	"context"
