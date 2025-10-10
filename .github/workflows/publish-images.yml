@@ -34,7 +34,7 @@ jobs:
     outputs:
       matrix: ${{ steps.mk-matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - id: mk-matrix
         shell: bash
         run: |
@@ -80,10 +80,10 @@ jobs:
     strategy:
       matrix: ${{ fromJSON(needs.detect-images.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
         with:
           images: ${{ matrix.image }}
           tags: |
@@ -106,22 +106,22 @@ jobs:
             org.opencontainers.image.vendor=ComplyTime
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
         
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
 
       # STAGE 1: Build locally first (don't push yet!)
       - name: Build and load to Docker (Stage 1 - Local Build)
         id: build-local
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -138,7 +138,7 @@ jobs:
 
       # STAGE 2: Critical security check - scan for secrets (WILL FAIL BUILD)
       - name: Scan for secrets (Stage 2 - Secret Detection)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # 0.24.0
         with:
           image-ref: ${{ matrix.image }}:${{ steps.meta.outputs.version }}
           exit-code: 1            # FAIL the workflow if secrets found!
@@ -148,7 +148,7 @@ jobs:
 
       # STAGE 3: Scan for vulnerabilities (for awareness, uploads to Security tab)
       - name: Scan for vulnerabilities (Stage 3 - Vulnerability Scan)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # 0.24.0
         with:
           image-ref: ${{ matrix.image }}:${{ steps.meta.outputs.version }}
           format: sarif
@@ -158,7 +158,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Upload vulnerability scan results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@fbed2d2d53d0343436c1d6332dae0b38394d3917 # v3.30.7
         with:
           sarif_file: trivy-results.sarif
           category: ${{ matrix.name }}-vulnerabilities
@@ -169,7 +169,7 @@ jobs:
       # STAGE 4: Multi-arch build and push (uses cache, super fast!)
       - name: Build and push multi-arch (Stage 4 - Final Push)
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
@@ -189,7 +189,7 @@ jobs:
 
       # STAGE 5: Attestations for supply chain security
       - name: Attest build provenance (Stage 5 - Attestations)
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 #  v1.4.4
         with:
           subject-name: ${{ matrix.image }}
           subject-digest: ${{ steps.digest.outputs.digest }}
@@ -197,14 +197,14 @@ jobs:
 
       # STAGE 6: Sign image with Cosign
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.8.1
+        uses: sigstore/cosign-installer@053f9b74638557590800a301da1ba82351507e2c # v3.8.1
         
       - name: Sign image (Stage 6 - Signing)
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
           IMAGE_WITH_DIGEST="${{ matrix.image }}@${{ steps.digest.outputs.digest }}"
-          echo "🔏 Signing: $IMAGE_WITH_DIGEST"
+          echo " Signing: $IMAGE_WITH_DIGEST"
           cosign sign --yes "$IMAGE_WITH_DIGEST"
 
       # STAGE 7: Verify signature (ensure signing worked!)
@@ -217,7 +217,7 @@ jobs:
           cosign verify "$IMAGE_WITH_DIGEST" \
             --certificate-identity-regexp="https://github\.com/${{ github.repository_owner }}/.*" \
             --certificate-oidc-issuer=https://token.actions.githubusercontent.com
-          echo "✅ Signature verified successfully!"
+          echo " Signature verified successfully!"
 
       # Summary
       - name: Published image summary
