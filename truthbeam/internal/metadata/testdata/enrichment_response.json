@@ -1,0 +1,34 @@
+{
+  "compliance": {
+    "catalog": "NIST-800-53",
+    "control": "AC-2",
+    "category": "Access Control",
+    "requirements": [
+      "AC-2.1",
+      "AC-2.2",
+      "AC-2.3"
+    ],
+    "standards": [
+      "NIST-800-53",
+      "ISO-27001",
+      "SOC-2"
+    ],
+    "remediation": "Implement proper branch protection rules requiring at least one approval before merging to main branch"
+  },
+  "status": {
+    "title": "Fail",
+    "id": 2
+  },
+  "threats": [
+    {
+      "referenceId": "MITRE-ATT&CK",
+      "identifiers": [
+        {
+          "id": "T1059.004",
+          "name": "Command and Scripting Interpreter: Unix Shell",
+          "url": "https://attack.mitre.org/techniques/T1059/004/"
+        }
+      ]
+    }
+  ]
+}

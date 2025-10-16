@@ -1,0 +1,14 @@
+# Test configuration for TruthBeam processor
+client_config:
+  endpoint: "http://localhost:8081"
+  timeout: 30s
+  compression: gzip
+  write_buffer_size: 524288
+  read_buffer_size: 0
+  headers:
+    User-Agent: "truthbeam-test/1.0"
+  auth:
+    authenticator: "none"
+  tls:
+    insecure: true
+    insecure_skip_verify: true
