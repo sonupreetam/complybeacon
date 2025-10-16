@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -16,25 +17,32 @@ func ApplyAttributes(ctx context.Context, client *Client, serverURL string, _ pc
 	attrs := logRecord.Attributes()
 
 	// Retrieve lookup attributes
+	missing_attr := []string{}
+
 	policyIDVal, ok := attrs.Get(POLICY_ID)
 	if !ok {
-		return fmt.Errorf("missing required attribute %q", POLICY_ID)
+		missing_attr = append(missing_attr, POLICY_ID)
 	}
 
 	policyAction, ok := attrs.Get(POLICY_ENFORCEMENT_ACTION)
 	if !ok {
-		return fmt.Errorf("missing required attribute %q", POLICY_ENFORCEMENT_ACTION)
+		missing_attr = append(missing_attr, POLICY_ENFORCEMENT_ACTION)
 	}
 
 	policySourceVal, ok := attrs.Get(POLICY_SOURCE)
 	if !ok {
-		return fmt.Errorf("missing required attribute %q", POLICY_SOURCE)
+		missing_attr = append(missing_attr, POLICY_SOURCE)
 	}
 
 	policyDecisionVal, ok := attrs.Get(POLICY_EVALUATION_STATUS)
 	if !ok {
-		return fmt.Errorf("missing required attributes %q", POLICY_EVALUATION_STATUS)
+		missing_attr = append(missing_attr, POLICY_EVALUATION_STATUS)
 	}
+
+	if len(missing_attr) > 0 {
+		return fmt.Errorf("missing required attributes: %s", strings.Join(missing_attr, ", "))
+	}
+
 	enrichReq := EnrichmentRequest{
 		Evidence: Evidence{
 			Timestamp: logRecord.Timestamp().AsTime(),
