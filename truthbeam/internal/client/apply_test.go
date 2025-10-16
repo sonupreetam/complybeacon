@@ -51,7 +51,7 @@ func TestApplyAttributes(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer mockServer.Close()
 
@@ -180,7 +180,7 @@ func TestApplyAttributesWithHTTPError(t *testing.T) {
 			Code:    500,
 			Message: "Internal server error",
 		}
-		json.NewEncoder(w).Encode(errorResponse)
+		_ = json.NewEncoder(w).Encode(errorResponse)
 	}))
 	defer mockServer.Close()
 
@@ -217,7 +217,7 @@ func TestApplyAttributesWithEmptyResponse(t *testing.T) {
 	// Create a mock HTTP server that returns empty response
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("{}"))
+		_, _ = w.Write([]byte("{}"))
 	}))
 	defer mockServer.Close()
 
@@ -268,7 +268,7 @@ func TestApplyAttributesWithNilRemediation(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer mockServer.Close()
 
