@@ -17,30 +17,30 @@ func ApplyAttributes(ctx context.Context, client *Client, serverURL string, _ pc
 	attrs := logRecord.Attributes()
 
 	// Retrieve lookup attributes
-	missing_attr := []string{}
+	var missingAttrs []string
 
 	policyIDVal, ok := attrs.Get(POLICY_ID)
 	if !ok {
-		missing_attr = append(missing_attr, POLICY_ID)
+		missingAttrs = append(missingAttrs, POLICY_ID)
 	}
 
 	policyAction, ok := attrs.Get(POLICY_ENFORCEMENT_ACTION)
 	if !ok {
-		missing_attr = append(missing_attr, POLICY_ENFORCEMENT_ACTION)
+		missingAttrs = append(missingAttrs, POLICY_ENFORCEMENT_ACTION)
 	}
 
 	policySourceVal, ok := attrs.Get(POLICY_SOURCE)
 	if !ok {
-		missing_attr = append(missing_attr, POLICY_SOURCE)
+		missingAttrs = append(missingAttrs, POLICY_SOURCE)
 	}
 
 	policyDecisionVal, ok := attrs.Get(POLICY_EVALUATION_STATUS)
 	if !ok {
-		missing_attr = append(missing_attr, POLICY_EVALUATION_STATUS)
+		missingAttrs = append(missingAttrs, POLICY_EVALUATION_STATUS)
 	}
 
-	if len(missing_attr) > 0 {
-		return fmt.Errorf("missing required attributes: %s", strings.Join(missing_attr, ", "))
+	if len(missingAttrs) > 0 {
+		return fmt.Errorf("missing required attributes: %s", strings.Join(missingAttrs, ", "))
 	}
 
 	enrichReq := EnrichmentRequest{
