@@ -16,9 +16,11 @@ func TestCreateDefaultConfig(t *testing.T) {
 
 	require.NotNil(t, config, "Config should not be nil")
 
+	// Validate that config is processor-specific truthbeam config
 	cfg, ok := config.(*Config)
 	require.True(t, ok, "Expected *Config, got %T", config)
 
+	// Validate truthbeam default config values
 	assert.Empty(t, cfg.ClientConfig.Endpoint, "Expected default endpoint to be empty (must be set by user)")
 	assert.Equal(t, 30*time.Second, cfg.ClientConfig.Timeout, "Expected timeout 30s")
 	assert.Equal(t, configcompression.Type("gzip"), cfg.ClientConfig.Compression, "Expected gzip compression")
@@ -31,14 +33,14 @@ func TestCreateLogsProcessor(t *testing.T) {
 
 	assert.Equal(t, "truthbeam", factory.Type().String(), "Expected factory type 'truthbeam'")
 
-	cfg := config.(*Config)
+	// Validate that config is processor-specific truthbeam config
+	cfg, ok := config.(*Config)
+	require.True(t, ok, "Expected *Config, got %T", config)
+
+	// Validate that config validation fails for empty endpoint
 	err := cfg.Validate()
 	assert.Error(t, err, "Expected config validation to fail for empty endpoint")
 	assert.Contains(t, err.Error(), "endpoint must be specified")
-
-	cfg.ClientConfig.Endpoint = "http://localhost:8081"
-	err = cfg.Validate()
-	assert.NoError(t, err, "Config validation should pass with endpoint set")
 }
 
 func TestConfigValidation(t *testing.T) {
@@ -79,10 +81,11 @@ func getValidConfig() *Config {
 	}
 }
 
+// Helper function to get an invalid config missing the required endpoint
 func getInvalidConfig() *Config {
 	return &Config{
 		ClientConfig: confighttp.ClientConfig{
-			// Missing required endpoint
+			// Endpoint is the only required attribute
 			Timeout:     30 * time.Second,
 			Compression: "gzip",
 		},

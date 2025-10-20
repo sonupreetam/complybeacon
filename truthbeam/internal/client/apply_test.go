@@ -70,11 +70,13 @@ func TestApplyAttributes(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify that compliance attributes were added
-	assert.Equal(t, "Pass", attrs.AsRaw()[COMPLIANCE_STATUS])
-	assert.Equal(t, "AC-1", attrs.AsRaw()[COMPLIANCE_CONTROL_ID])
-	assert.Equal(t, "NIST-800-53", attrs.AsRaw()[COMPLIANCE_CONTROL_CATALOG_ID])
-	assert.Equal(t, "Access Control", attrs.AsRaw()[COMPLIANCE_CATEGORY])
-	assert.Equal(t, "Implement proper access controls", attrs.AsRaw()[COMPLIANCE_CONTROL_REMEDIATION_DESCRIPTION])
+	assertAttributesEqual(t, attrs.AsRaw(), map[string]interface{}{
+		COMPLIANCE_STATUS:                          "Pass",
+		COMPLIANCE_CONTROL_ID:                      "AC-1",
+		COMPLIANCE_CONTROL_CATALOG_ID:              "NIST-800-53",
+		COMPLIANCE_CATEGORY:                        "Access Control",
+		COMPLIANCE_CONTROL_REMEDIATION_DESCRIPTION: "Implement proper access controls",
+	})
 
 	// Check requirements and standards arrays
 	requirements := attrs.AsRaw()[COMPLIANCE_REQUIREMENTS].([]interface{})
@@ -88,206 +90,183 @@ func TestApplyAttributes(t *testing.T) {
 	assert.Contains(t, standards, "ISO-27001")
 }
 
-// TestApplyAttributesWithMissingPolicyId tests the ApplyAttributes functionality with a missing policy.id attribute.
-func TestApplyAttributesWithMissingPolicyId(t *testing.T) {
-	// Create client
+// Table-driven coverage for missing required attributes
+func TestApplyAttributesMissingRequiredAttributes(t *testing.T) {
 	client, err := NewClient("http://localhost:8081")
 	require.NoError(t, err)
 
-	// Create test log record without policy.id
-	logRecord := plog.NewLogRecord()
-	attrs := logRecord.Attributes()
-	attrs.PutStr(POLICY_SOURCE, "test-source")
-	attrs.PutStr(POLICY_EVALUATION_STATUS, "compliant")
-	attrs.PutStr(POLICY_ENFORCEMENT_ACTION, "audit")
-
-	resource := pcommon.NewResource()
-
-	// Apply attributes should fail since no policy.id present
-	ctx := context.Background()
-	err = ApplyAttributes(ctx, client, "http://localhost:8081", resource, logRecord)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing required attribute")
-	assert.Contains(t, err.Error(), POLICY_ID)
-}
-
-func TestApplyAttributesWithMissingPolicySource(t *testing.T) {
-	// Create client
-	client, err := NewClient("http://localhost:8081")
-	require.NoError(t, err)
-
-	// Create test log record without policy.source
-	logRecord := plog.NewLogRecord()
-	attrs := logRecord.Attributes()
-	attrs.PutStr(POLICY_ID, "test-policy-123")
-	attrs.PutStr(POLICY_EVALUATION_STATUS, "compliant")
-	attrs.PutStr(POLICY_ENFORCEMENT_ACTION, "audit")
-
-	resource := pcommon.NewResource()
-
-	// Apply attributes should fail
-	ctx := context.Background()
-	err = ApplyAttributes(ctx, client, "http://localhost:8081", resource, logRecord)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing required attribute")
-	assert.Contains(t, err.Error(), POLICY_SOURCE)
-}
-
-func TestApplyAttributesWithMissingPolicyEvaluationStatus(t *testing.T) {
-	// Create client
-	client, err := NewClient("http://localhost:8081")
-	require.NoError(t, err)
-
-	// Create test log record without policy.evaluation.status
-	logRecord := plog.NewLogRecord()
-	attrs := logRecord.Attributes()
-	attrs.PutStr(POLICY_ID, "test-policy-123")
-	attrs.PutStr(POLICY_SOURCE, "test-source")
-	attrs.PutStr(POLICY_ENFORCEMENT_ACTION, "audit")
-
-	resource := pcommon.NewResource()
-
-	// Apply attributes should fail
-	ctx := context.Background()
-	err = ApplyAttributes(ctx, client, "http://localhost:8081", resource, logRecord)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing required attribute")
-	assert.Contains(t, err.Error(), POLICY_EVALUATION_STATUS)
-}
-
-func TestApplyAttributesWithMissingPolicyEnforcementAction(t *testing.T) {
-	// Create client
-	client, err := NewClient("http://localhost:8081")
-	require.NoError(t, err)
-
-	// Create test log record and remove policy.enforcement.action
-	logRecord, resource := createTestLogRecord()
-	logRecord.Attributes().Remove(POLICY_ENFORCEMENT_ACTION)
-
-	// Apply attributes should fail
-	ctx := context.Background()
-	err = ApplyAttributes(ctx, client, "http://localhost:8081", resource, logRecord)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "missing required attribute")
-	assert.Contains(t, err.Error(), POLICY_ENFORCEMENT_ACTION)
-}
-
-func TestApplyAttributesWithHTTPError(t *testing.T) {
-	// Create a mock HTTP server that returns an error
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		errorResponse := Error{
-			Code:    500,
-			Message: "Internal server error",
-		}
-		_ = json.NewEncoder(w).Encode(errorResponse)
-	}))
-	defer mockServer.Close()
-
-	// Create client
-	client, err := NewClient(mockServer.URL)
-	require.NoError(t, err)
-
-	// Create test log record
-	logRecord, resource := createTestLogRecord()
-
-	// Apply attributes should fail
-	ctx := context.Background()
-	err = ApplyAttributes(ctx, client, mockServer.URL, resource, logRecord)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "API call failed with status 500")
-}
-
-func TestApplyAttributesWithNetworkError(t *testing.T) {
-	// Create client with invalid URL
-	client, err := NewClient("http://invalid-host:9999")
-	require.NoError(t, err)
-
-	// Create test log record
-	logRecord, resource := createTestLogRecord()
-
-	// Apply attributes should fail due to network error
-	ctx := context.Background()
-	err = ApplyAttributes(ctx, client, "http://invalid-host:9999", resource, logRecord)
-	assert.Error(t, err)
-	// Network error message will vary, just check that it's an error
-}
-
-func TestApplyAttributesWithEmptyResponse(t *testing.T) {
-	// Create a mock HTTP server that returns empty response
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte("{}"))
-	}))
-	defer mockServer.Close()
-
-	// Create client
-	client, err := NewClient(mockServer.URL)
-	require.NoError(t, err)
-
-	// Create test log record
-	logRecord, resource := createTestLogRecord()
-
-	// Apply attributes should succeed but with empty compliance data
-	ctx := context.Background()
-	err = ApplyAttributes(ctx, client, mockServer.URL, resource, logRecord)
-	require.NoError(t, err)
-
-	// Check that empty compliance attributes were added
-	attrs := logRecord.Attributes()
-	assert.Equal(t, "", attrs.AsRaw()[COMPLIANCE_STATUS])
-	assert.Equal(t, "", attrs.AsRaw()[COMPLIANCE_CONTROL_ID])
-	assert.Equal(t, "", attrs.AsRaw()[COMPLIANCE_CONTROL_CATALOG_ID])
-	assert.Equal(t, "", attrs.AsRaw()[COMPLIANCE_CATEGORY])
-
-	// Check that empty arrays were added
-	requirements := attrs.AsRaw()[COMPLIANCE_REQUIREMENTS].([]interface{})
-	assert.Len(t, requirements, 0)
-
-	standards := attrs.AsRaw()[COMPLIANCE_STANDARDS].([]interface{})
-	assert.Len(t, standards, 0)
-}
-
-func TestApplyAttributesWithNilRemediation(t *testing.T) {
-	// Create a mock HTTP server
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Return a response with nil remediation
-		response := EnrichmentResponse{
-			Compliance: Compliance{
-				Catalog:      "NIST-800-53",
-				Category:     "Access Control",
-				Control:      "AC-1",
-				Remediation:  nil, // No remediation
-				Requirements: []string{"req-1"},
-				Standards:    []string{"NIST-800-53"},
+	tests := []struct {
+		name              string
+		configRecord      func(plog.LogRecord)
+		expectedAttribute string
+	}{
+		{
+			name: "missing policy.id",
+			configRecord: func(logRecord plog.LogRecord) {
+				attrs := logRecord.Attributes()
+				attrs.Remove(POLICY_ID)
+				attrs.PutStr(POLICY_SOURCE, "test-source")
+				attrs.PutStr(POLICY_EVALUATION_STATUS, "compliant")
+				attrs.PutStr(POLICY_ENFORCEMENT_ACTION, "audit")
 			},
-			Status: Status{
-				Id:    statusIdPtr(1),
-				Title: "Pass",
+			expectedAttribute: POLICY_ID,
+		},
+		{
+			name: "missing policy.source",
+			configRecord: func(logRecord plog.LogRecord) {
+				attrs := logRecord.Attributes()
+				attrs.PutStr(POLICY_ID, "test-policy-123")
+				attrs.Remove(POLICY_SOURCE)
+				attrs.PutStr(POLICY_EVALUATION_STATUS, "compliant")
+				attrs.PutStr(POLICY_ENFORCEMENT_ACTION, "audit")
 			},
-		}
+			expectedAttribute: POLICY_SOURCE,
+		},
+		{
+			name: "missing policy.evaluation.status",
+			configRecord: func(logRecord plog.LogRecord) {
+				attrs := logRecord.Attributes()
+				attrs.PutStr(POLICY_ID, "test-policy-123")
+				attrs.PutStr(POLICY_SOURCE, "test-source")
+				attrs.Remove(POLICY_EVALUATION_STATUS)
+				attrs.PutStr(POLICY_ENFORCEMENT_ACTION, "audit")
+			},
+			expectedAttribute: POLICY_EVALUATION_STATUS,
+		},
+		{
+			name: "missing policy.enforcement.action",
+			configRecord: func(logRecord plog.LogRecord) {
+				attrs := logRecord.Attributes()
+				attrs.PutStr(POLICY_ID, "test-policy-123")
+				attrs.PutStr(POLICY_SOURCE, "test-source")
+				attrs.PutStr(POLICY_EVALUATION_STATUS, "compliant")
+				attrs.Remove(POLICY_ENFORCEMENT_ACTION)
+			},
+			expectedAttribute: POLICY_ENFORCEMENT_ACTION,
+		},
+	}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(response)
-	}))
-	defer mockServer.Close()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logRecord := plog.NewLogRecord()
+			resource := pcommon.NewResource()
+			tt.configRecord(logRecord)
 
-	// Create client
-	client, err := NewClient(mockServer.URL)
-	require.NoError(t, err)
+			ctx := context.Background()
+			err := ApplyAttributes(ctx, client, "http://localhost:8081", resource, logRecord)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "missing required attribute")
+			assert.Contains(t, err.Error(), tt.expectedAttribute)
+		})
+	}
+}
 
-	// Create test log record
-	logRecord, resource := createTestLogRecord()
+func TestApplyAttributes_ServerResponses(t *testing.T) {
+	tests := []struct {
+		name       string
+		handler    http.HandlerFunc // if nil, use endpoint directly (e.g., network error)
+		endpoint   string           // optional override for endpoint
+		expectErr  bool
+		assertFunc func(t *testing.T, attrs map[string]interface{}, err error)
+	}{
+		{
+			name: "http 500 error",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				_ = json.NewEncoder(w).Encode(Error{Code: 500, Message: "Internal server error"})
+			},
+			expectErr: true,
+			assertFunc: func(t *testing.T, _ map[string]interface{}, err error) {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "API call failed with status 500")
+			},
+		},
+		{
+			name:      "network error",
+			handler:   nil,
+			endpoint:  "http://invalid-host:9999",
+			expectErr: true,
+			assertFunc: func(t *testing.T, _ map[string]interface{}, err error) {
+				assert.Error(t, err)
+			},
+		},
+		{
+			name: "empty response",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte("{}"))
+			},
+			expectErr: false,
+			assertFunc: func(t *testing.T, attrs map[string]interface{}, err error) {
+				assert.NoError(t, err)
+				// Expect blank values when the API returns an empty JSON object
+				assertAttributesEqual(t, attrs, map[string]interface{}{
+					COMPLIANCE_STATUS:             "",
+					COMPLIANCE_CONTROL_ID:         "",
+					COMPLIANCE_CONTROL_CATALOG_ID: "",
+					COMPLIANCE_CATEGORY:           "",
+				})
+				// Ensure requirements and standards are present as empty arrays
+				requirements := attrs[COMPLIANCE_REQUIREMENTS].([]interface{})
+				assert.Len(t, requirements, 0)
+				standards := attrs[COMPLIANCE_STANDARDS].([]interface{})
+				assert.Len(t, standards, 0)
+			},
+		},
+		{
+			name: "omits remediation when nil",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				_ = json.NewEncoder(w).Encode(EnrichmentResponse{
+					Compliance: Compliance{
+						Catalog:      "NIST-800-53",
+						Category:     "Access Control",
+						Control:      "AC-1",
+						Remediation:  nil,
+						Requirements: []string{"req-1"},
+						Standards:    []string{"NIST-800-53"},
+					},
+					Status: Status{Id: statusIdPtr(1), Title: "Pass"},
+				})
+			},
+			expectErr: false,
+			assertFunc: func(t *testing.T, attrs map[string]interface{}, err error) {
+				assert.NoError(t, err)
+				_, exists := attrs[COMPLIANCE_CONTROL_REMEDIATION_DESCRIPTION]
+				assert.False(t, exists, "Remediation attribute should not exist when nil")
+			},
+		},
+	}
 
-	// Apply attributes
-	ctx := context.Background()
-	err = ApplyAttributes(ctx, client, mockServer.URL, resource, logRecord)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var endpoint string
 
-	// Check that remediation attribute was not added
-	attrs := logRecord.Attributes()
-	_, exists := attrs.Get(COMPLIANCE_CONTROL_REMEDIATION_DESCRIPTION)
-	assert.False(t, exists, "Remediation attribute should not exist when nil")
+			// If a handler is provided, use it to create a mock server
+			// Otherwise, use the endpoint directly to test network errors
+			if tt.handler != nil {
+				mockServer := httptest.NewServer(tt.handler)
+				endpoint = mockServer.URL
+				defer mockServer.Close()
+			} else {
+				endpoint = tt.endpoint
+			}
+
+			client, err := NewClient(endpoint)
+			require.NoError(t, err)
+
+			logRecord, resource := createTestLogRecord()
+			ctx := context.Background()
+			err = ApplyAttributes(ctx, client, endpoint, resource, logRecord)
+
+			tt.assertFunc(t, logRecord.Attributes().AsRaw(), err)
+		})
+	}
+}
+
+// assertAttributesEqual compares expected key/value pairs against the attributes map.
+func assertAttributesEqual(t *testing.T, attrs map[string]interface{}, expected map[string]interface{}) {
+	t.Helper()
+	assert.Subset(t, attrs, expected)
 }
 
 // Helper functions

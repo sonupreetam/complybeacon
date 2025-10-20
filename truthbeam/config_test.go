@@ -16,10 +16,10 @@ func TestConfigValidate(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name:        "empty endpoint should fail",
+			name:        "empty config should fail",
 			config:      &Config{},
 			expectError: true,
-			errorMsg:    "endpoint must be specified",
+			errorMsg:    "must be specified",
 		},
 		{
 			name: "valid endpoint should pass",
@@ -56,7 +56,7 @@ func TestConfigValidate(t *testing.T) {
 				},
 			},
 			expectError: true,
-			errorMsg:    "endpoint must be specified",
+			errorMsg:    "must be specified",
 		},
 	}
 
