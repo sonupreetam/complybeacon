@@ -23,7 +23,7 @@
 
 The ComplyBeacon architecture is centered around a unified enrichment pipeline that processes and enriches compliance evidence. The primary data flow begins with a source that generates OpenTelemetry-compliant logs.
 
-1.  **Log Ingestion**: A source generates OCSF-compliant evidence and sends it as a structured log record to the `Beacon` collector, typically using `ProofWatch` to handle the emission. This can also be done by an OpenTelemetry collector agent.
+1.  **Log Ingestion**: A source generates compliance evidence and sends it as a structured log record to the `Beacon` collector, typically using `ProofWatch` to handle the emission. This can also be done by an OpenTelemetry collector agent.
 2.  **Enrichment Request**: The log record is received by the `Beacon` collector and forwarded to the `truthbeam` processor. `truthbeam` extracts key attributes from the record and sends an enrichment request to the `Compass` API.
 3.  **Enrichment Lookup**: The `Compass` service performs a lookup based on the provided attributes and returns a response containing compliance-related context (e.g., impacted baselines, requirements, and a compliance result).
 4.  **Attribute Injection**: `truthbeam` adds these new attributes from `Compass` to the original log record.
@@ -77,33 +77,44 @@ ComplyBeacon is designed to be a flexible toolkit. Its components can be used in
 
 ### 1. ProofWatch
 
-**Purpose**: An instrumentation library to normalize for policy decision events. Its purpose is to take pre-normalized, OCSF-compliant evidence and emit it to an OpenTelemetry Collector as a standardized log stream.
+**Purpose**: An instrumentation library for collecting and emitting compliance evidence as OpenTelemetry log streams. It provides a standardized interface for tracking policy evaluation events and compliance evidence in real-time.
 
 **Key Responsibilities**:
-* Converts OCSF-formatted data into a standardized OpenTelemetry log record.
-* Emits this log record to the OpenTelemetry Collector using the OTLP (OpenTelemetry Protocol).
+* Converts compliance evidence data into standardized OpenTelemetry log records.
+* Emits log records to the OpenTelemetry Collector using the OTLP (OpenTelemetry Protocol).
+* Provides metrics and tracing for evidence collection and processing.
 
 `proofwatch` attributes defined [here](./attributes)
 
 _Example code snippet_
 ```go
-watcher, err := proofwatch.NewProofWatch("myexample", meter)
+import (
+    "context"
+    "log"
+    
+    "go.opentelemetry.io/otel/log"
+    "github.com/complytime/complybeacon/proofwatch"
+)
+
+// Create a new ProofWatch instance
+pw, err := proofwatch.NewProofWatch()
 if err != nil {
-    return fmt.Errorf("error setting up watcher: %w", err)
+    log.Fatal(err)
 }
 
-logger.Debug("found evidence", "path", evidence.Href)
-var e proofwatch.Evidence
-evidenceData, err := os.ReadFile(evidence.Href)
+// Create evidence (example with GemaraEvidence)
+evidence := proofwatch.GemaraEvidence{
+    // ... populate evidence fields
+}
+
+// Log evidence with default severity
+err = pw.Log(ctx, evidence)
 if err != nil {
-    return err
+    return fmt.Errorf("error logging evidence: %w", err)
 }
-if err = json.Unmarshal(evidenceData, &e); err != nil {
-    return err
-}
-if err = watcher.Log(ctx, e); err != nil {
-    return err
-}
+
+// Or log with specific severity
+err = pw.LogWithSeverity(ctx, evidence, olog.SeverityWarn)
 ```
 
 ### 2. Beacon Collector Distro

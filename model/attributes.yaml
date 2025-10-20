@@ -66,6 +66,7 @@ groups:
         examples: [ "success", "fail", "error" ]
         note: |
           This is required if the policy enforcement action is not "audit".
+        requirement_level: recommended
       - id: policy.enforcement.action
         type: string
         stability: development

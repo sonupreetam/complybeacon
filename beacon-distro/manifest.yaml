@@ -13,7 +13,7 @@ exporters:
 
 processors:
   - gomod: go.opentelemetry.io/collector/processor/batchprocessor v0.131.0
-  - gomod: github.com/complytime/complybeacon/truthbeam v0.1.0
+  - gomod: github.com/complytime/complybeacon/truthbeam main
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.134.0
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/processor/schemaprocessor v0.134.0
 
@@ -32,6 +32,3 @@ providers:
 
 connectors:
   - gomod: github.com/open-telemetry/opentelemetry-collector-contrib/connector/signaltometricsconnector v0.134.0
-
-replaces:
-  - github.com/complytime/complybeacon/truthbeam => github.com/jpower432/complybeacon/truthbeam main

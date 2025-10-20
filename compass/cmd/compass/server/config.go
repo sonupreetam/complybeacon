@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/goccy/go-yaml"
 	"github.com/ossf/gemara/layer2"
@@ -95,17 +94,20 @@ func NewMapperFromDir(pluginID mapper.ID, evaluationsPath string) (mapper.Mapper
 			return err
 		}
 
-		var evaluation []layer4.AssessmentPlan
+		var evaluation layer4.EvaluationPlan
 		err = yaml.Unmarshal(content, &evaluation)
 		if err != nil {
 			return err
 		}
 
-		extension := filepath.Ext(info.Name())
-		nameWithoutExt := strings.TrimSuffix(info.Name(), extension)
-
-		// FIXME: Increase robustness here instead of relying on the filename.
-		mpr.AddEvaluationPlan(nameWithoutExt, evaluation)
+		// Extract reference-ids from Assessment Plans to determine the
+		// control source.
+		for _, plan := range evaluation.Plans {
+			if plan.Control.ReferenceId == "" {
+				continue
+			}
+			mpr.AddEvaluationPlan(plan.Control.ReferenceId, plan)
+		}
 		return nil
 	})
 	return mpr, err

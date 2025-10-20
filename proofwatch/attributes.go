@@ -70,4 +70,3 @@ const POLICY_SOURCE = "policy.source"
 
 // Add contextual details around the policy status
 const POLICY_STATUS_DETAIL = "policy.status.detail"
-

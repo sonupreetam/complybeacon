@@ -1,16 +1,21 @@
 package proofwatch
 
-import ocsf "github.com/Santiago-Labs/go-ocsf/ocsf/v1_5_0"
+import (
+	"time"
 
-// OCSF-based evidence structured, with some security control profile fields. Attributes for `compliance` findings
-// by the `compass` service based on `gemara` based during pipeline enrichment.
+	"go.opentelemetry.io/otel/attribute"
+)
 
-type Evidence struct {
-	ocsf.ScanActivity `json:",inline"`
-	// From the security-control profile
-	Policy        ocsf.Policy `json:"policy" parquet:"policy"`
-	Action        *string     `json:"action,omitempty" parquet:"action,optional"`
-	ActionID      *int32      `json:"action_id,omitempty" parquet:"action_id,optional"`
-	Disposition   *string     `json:"disposition,omitempty" parquet:"action,optional"`
-	DispositionID *int32      `json:"disposition_id,omitempty" parquet:"action_id,optional"`
+// Evidence defines the interface for compliance evidence data that can be collected
+// and processed by the proofwatch.
+type Evidence interface {
+	// Marshaler serializes the evidence data to JSON format.
+	ToJSON() ([]byte, error)
+
+	// Attributes converts the evidence data into OpenTelemetry attribute key-value pairs
+	// for observability, monitoring, and compliance tracking purposes
+	Attributes() []attribute.KeyValue
+
+	// Timestamp returns the time when the evidence was generated or collected
+	Timestamp() time.Time
 }
