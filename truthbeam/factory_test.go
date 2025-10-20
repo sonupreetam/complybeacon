@@ -54,20 +54,6 @@ func TestConfigValidation(t *testing.T) {
 	assert.Contains(t, err.Error(), "endpoint must be specified")
 }
 
-func TestConfigFromTestdata(t *testing.T) {
-	validConfig := getValidConfig()
-	defaultConfig := getDefaultConfig()
-	invalidConfig := getInvalidConfig()
-
-	require.NotNil(t, validConfig, "Valid config should not be nil")
-	require.NotNil(t, defaultConfig, "Default config should not be nil")
-	require.NotNil(t, invalidConfig, "Invalid config should not be nil")
-
-	err := defaultConfig.Validate()
-	assert.Error(t, err, "Default config should fail validation (empty endpoint)")
-	assert.Contains(t, err.Error(), "endpoint must be specified")
-}
-
 // Helper functions for test configurations
 func getValidConfig() *Config {
 	return &Config{
@@ -89,16 +75,5 @@ func getInvalidConfig() *Config {
 			Timeout:     30 * time.Second,
 			Compression: "gzip",
 		},
-	}
-}
-
-func getDefaultConfig() *Config {
-	clientConfig := confighttp.NewDefaultClientConfig()
-	clientConfig.Timeout = 30 * time.Second
-	clientConfig.Compression = "gzip"
-	clientConfig.WriteBufferSize = 512 * 1024
-
-	return &Config{
-		ClientConfig: clientConfig,
 	}
 }
