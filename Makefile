@@ -76,6 +76,10 @@ deploy: ## Deploy infra
 	podman-compose -f compose.yaml up
 .PHONY: deploy
 
+undeploy: ## Undeploy container stack
+	podman-compose -f compose.yaml down -v
+.PHONY: undeploy
+
 #------------------------------------------------------------------------------
 # Generate
 #------------------------------------------------------------------------------
