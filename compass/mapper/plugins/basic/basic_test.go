@@ -45,6 +45,12 @@ func TestBasicMapper_Map(t *testing.T) {
 			expectedTitle: api.Warning,
 			expectedId:    api.N3,
 		},
+		{
+			name:          "unmapped compliance status defaults to warning",
+			decision:      "unmapped",
+			expectedTitle: api.Warning,
+			expectedId:    api.N3,
+		},
 	}
 
 	for _, tt := range tests {

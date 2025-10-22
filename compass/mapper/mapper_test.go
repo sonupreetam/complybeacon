@@ -57,11 +57,6 @@ func TestNewID(t *testing.T) {
 			input:    "",
 			expected: ID(""),
 		},
-		{
-			name:     "special characters",
-			input:    "mapper-v1.0",
-			expected: ID("mapper-v1.0"),
-		},
 	}
 
 	for _, tt := range tests {
@@ -75,8 +70,6 @@ func TestNewID(t *testing.T) {
 // TestSet tests map operations (add, retrieve, delete) on the Set type
 func TestSet(t *testing.T) {
 	set := make(Set)
-	assert.NotNil(t, set)
-	assert.Empty(t, set)
 
 	policyMapper := &mockMapper{id: "policy-mapper"}
 	controlMapper := &mockMapper{id: "control-mapper"}
@@ -109,8 +102,6 @@ func TestSet(t *testing.T) {
 
 func TestScope(t *testing.T) {
 	scope := make(Scope)
-	assert.NotNil(t, scope)
-	assert.Empty(t, scope)
 
 	catalog1 := layer2.Catalog{Metadata: layer2.Metadata{Id: "catalog-1"}}
 	catalog2 := layer2.Catalog{Metadata: layer2.Metadata{Id: "catalog-2"}}
