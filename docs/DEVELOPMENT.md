@@ -133,7 +133,8 @@ complybeacon/
 │   └── Containerfile.collector # Container definition
 ├── hack/                       # Development utilities
 │   ├── demo/                  # Demo configurations
-│   └── sampledata/            # Sample data for testing
+│   ├── sampledata/            # Sample data for testing
+│   └── self-signed-cert/      # self signed cert, testing/development purpose
 └── bin/                        # Built binaries (created by make build)
 ```
 
@@ -216,6 +217,28 @@ curl -X POST http://localhost:8081/v1/enrich \
   -d '{"evidence": {"id": "test", "timestamp": "2024-01-01T00:00:00Z", "source": "test", "policyId": "test", "decision": "compliant", "action": "observed"}}'
 ```
 
+**run service with https(Testing/development only)**
+
+- Generate self-signed certificate locally following [generate-self-signed-certificate.md](../hack/self-signed-cert/generate-self-signed-certificate.md)
+- Uncomment cert config on [config.yaml](../hack/demo/config.yaml)
+```yaml
+certConfig:
+  cert: /certs/compass.crt
+  key:  /certs/compass.key
+```
+- Uncomment volumes/command for [compass service](../compose.yaml)
+```yaml
+    volumes:
+      - ./hack/sampledata:/sampledata:Z
+      - ./hack/demo/config.yaml:/config.yaml:Z
+      # Development/Testing purpose
+      - ./hack/self-signed-cert/compass.crt:/certs/compass.crt:Z
+      - ./hack/self-signed-cert/compass.key:/certs/compass.key:Z
+    command: [ "--config", "/config.yaml", "--catalog", "/sampledata/osps.yaml",  "--port", "8081"]
+    # command: ["--config", "/config.yaml", "--catalog", "/sampledata/osps.yaml",  "--port", "8081", "--skip-tls"]
+```
+
+
 **Adding New Mappers:**
 1. Create a new mapper in `compass/mapper/plugins/`
 2. Implement the `Mapper` interface
@@ -242,6 +265,49 @@ go test -v ./...
 cd ../beacon-distro
 # Modify config to use local truthbeam
 # Run collector with local processor
+```
+
+**Local development config**
+
+If you want locally test the TruthBeam, remember to change the [manifest.yaml](../beacon-distro/manifest.yaml)
+
+Add replace directive at the end of [manifest.yaml](../beacon-distro/manifest.yaml), to make sure collector use your `truthbeam` code. Default collector will use `- gomod: github.com/complytime/complybeacon/truthbeam main`
+
+For example:
+```yaml
+replaces:
+  - github.com/complytime/complybeacon/truthbeam => github.com/AlexXuan233/complybeacon/truthbeam 52e4a76ea0f72a7049e73e7a5d67d988116a3892
+```
+or
+```yaml
+replaces:
+  - github.com/complytime/complybeacon/truthbeam => github.com/AlexXuan233/complybeacon/truthbeam main
+```
+
+**Run client side with https(Testing/development only)**
+
+- Generate self-signed certificate locally following [generate-self-signed-certificate.md](../hack/self-signed-cert/generate-self-signed-certificate.md)
+- Uncomment cert config on [demo-config.yaml](../hack/demo/demo-config.yaml)
+```yaml
+processors:
+  batch:
+  truthbeam:
+    # endpoint: "http://compass:8081"
+    endpoint: "https://compass:8081"
+    tls:
+      # insecure: true
+      # Configure TLS settings
+
+      # Path to the CA certificate for verifying the server's certificate.
+      ca_file: /certs/my-ca.crt
+```
+- Uncomment volumes for [collector service](../compose.yaml)
+```yaml
+    volumes:
+      - ./hack/demo/demo-config.yaml:/etc/otel-collector.yaml:Z
+      - ./data:/data:Z
+      # Development/Testing purpose
+      - ./hack/self-signed-cert/my-ca.crt:/certs/my-ca.crt:Z
 ```
 
 ### 4. Beacon Distro Development
