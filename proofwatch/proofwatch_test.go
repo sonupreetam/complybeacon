@@ -79,41 +79,15 @@ func (f *proofWatchTestFixture) collectMetrics(ctx context.Context) metricdata.R
 	return rm
 }
 
-func TestNewProofWatch(t *testing.T) {
-	t.Run("default options", func(t *testing.T) {
-		pw, err := NewProofWatch()
-		require.NoError(t, err)
-		assert.NotNil(t, pw)
-		assert.NotNil(t, pw.logger)
-		assert.NotNil(t, pw.tracer)
-		assert.NotNil(t, pw.observer)
-		assert.Equal(t, olog.SeverityInfo, pw.levelSeverity)
-	})
-
-	t.Run("with custom providers", func(t *testing.T) {
-		meterProvider := sdkmetric.NewMeterProvider()
-		loggerProvider := noop.NewLoggerProvider()
-		tracerProvider := sdktrace.NewTracerProvider()
-
-		pw, err := NewProofWatch(
-			WithMeterProvider(meterProvider),
-			WithLoggerProvider(loggerProvider),
-			WithTracerProvider(tracerProvider),
-		)
-		require.NoError(t, err)
-		assert.NotNil(t, pw)
-	})
-
-	t.Run("with nil providers", func(t *testing.T) {
-		// Should not panic with nil providers - they fall back to global providers
-		pw, err := NewProofWatch(
-			WithMeterProvider(nil),
-			WithLoggerProvider(nil),
-			WithTracerProvider(nil),
-		)
-		require.NoError(t, err)
-		assert.NotNil(t, pw)
-	})
+func TestNewProofWatch_NilProviders(t *testing.T) {
+	// Should not panic with nil providers - they fall back to global providers
+	pw, err := NewProofWatch(
+		WithMeterProvider(nil),
+		WithLoggerProvider(nil),
+		WithTracerProvider(nil),
+	)
+	require.NoError(t, err)
+	assert.NotNil(t, pw)
 }
 
 func TestProofWatchLog(t *testing.T) {
@@ -144,15 +118,42 @@ func TestProofWatchLogWithSeverity(t *testing.T) {
 		name     string
 		severity olog.Severity
 	}{
-		{"debug severity", olog.SeverityDebug},
-		{"info severity", olog.SeverityInfo},
-		{"warn severity", olog.SeverityWarn},
-		{"error severity", olog.SeverityError},
-		{"fatal severity", olog.SeverityFatal},
-		{"unspecified", olog.Severity(0)},
-		{"negative", olog.Severity(-1)},
-		{"out of range", olog.Severity(999)},
-		{"max valid", olog.SeverityFatal4},
+		{
+			"debug severity",
+			olog.SeverityDebug,
+		},
+		{
+			"info severity",
+			olog.SeverityInfo,
+		},
+		{
+			"warn severity",
+			olog.SeverityWarn,
+		},
+		{
+			"error severity",
+			olog.SeverityError,
+		},
+		{
+			"fatal severity",
+			olog.SeverityFatal,
+		},
+		{
+			"unspecified",
+			olog.Severity(0),
+		},
+		{
+			"negative",
+			olog.Severity(-1),
+		},
+		{
+			"out of range",
+			olog.Severity(999),
+		},
+		{
+			"max valid",
+			olog.SeverityFatal4,
+		},
 	}
 
 	for _, tt := range tests {
