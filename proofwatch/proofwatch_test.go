@@ -144,15 +144,42 @@ func TestProofWatchLogWithSeverity(t *testing.T) {
 		name     string
 		severity olog.Severity
 	}{
-		{"debug severity", olog.SeverityDebug},
-		{"info severity", olog.SeverityInfo},
-		{"warn severity", olog.SeverityWarn},
-		{"error severity", olog.SeverityError},
-		{"fatal severity", olog.SeverityFatal},
-		{"unspecified", olog.Severity(0)},
-		{"negative", olog.Severity(-1)},
-		{"out of range", olog.Severity(999)},
-		{"max valid", olog.SeverityFatal4},
+		{
+			name:     "debug severity",
+			severity: olog.SeverityDebug,
+		},
+		{
+			name:     "info severity",
+			severity: olog.SeverityInfo,
+		},
+		{
+			name:     "warn severity",
+			severity: olog.SeverityWarn,
+		},
+		{
+			name:     "error severity",
+			severity: olog.SeverityError,
+		},
+		{
+			name:     "fatal severity",
+			severity: olog.SeverityFatal,
+		},
+		{
+			name:     "unspecified",
+			severity: olog.Severity(0),
+		},
+		{
+			name:     "negative",
+			severity: olog.Severity(-1),
+		},
+		{
+			name:     "out of range",
+			severity: olog.Severity(999),
+		},
+		{
+			name:     "max valid",
+			severity: olog.SeverityFatal4,
+		},
 	}
 
 	for _, tt := range tests {
