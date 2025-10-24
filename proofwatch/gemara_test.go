@@ -46,12 +46,14 @@ func TestGemaraEvidenceTimestamp(t *testing.T) {
 		expectErr bool
 	}{
 		{
-			name:    "valid RFC3339 timestamp",
-			endTime: "2023-12-01T10:30:00Z",
+			name:      "valid RFC3339 timestamp",
+			endTime:   "2023-12-01T10:30:00Z",
+			expectErr: false,
 		},
 		{
-			name:    "valid RFC3339 with timezone",
-			endTime: "2023-12-01T10:30:00-05:00",
+			name:      "valid RFC3339 with timezone",
+			endTime:   "2023-12-01T10:30:00-05:00",
+			expectErr: false,
 		},
 		{
 			name:      "invalid timestamp format",
@@ -172,7 +174,6 @@ func TestGemaraEvidenceAttributesDifferentResults(t *testing.T) {
 }
 
 // This remains the canonical helper for Gemara evidence tests.
-// proofwatch_test.go may comment that it’s defined here.
 func createTestGemaraEvidence() GemaraEvidence {
 	return GemaraEvidence{
 		Metadata: layer4.Metadata{
