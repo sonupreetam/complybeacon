@@ -5,6 +5,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
+    branches: [main, develop]
     types: [opened, synchronize, reopened]
 
 permissions:
@@ -58,6 +59,14 @@ jobs:
         run: |
           set -euxo pipefail
           modules=$(git ls-files '**/go.mod' | grep -v '^vendor/' | sed 's#/go\.mod##' || true)
+          
+          echo "Cleaning up existing coverage files..."
+          for m in $modules; do
+            (cd "$m" && rm -f coverage.out)
+          done
+          rm -f coverage.out 
+          
+          # Generate coverage
           for m in $modules; do
             (
               cd "$m"
@@ -71,16 +80,16 @@ jobs:
           done
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
           go install github.com/wadey/gocovmerge@latest
-          covs=$(for m in $modules; do [ -f "$m/coverage.out" ] && echo "$m/coverage.out"; done)
+          covs=$(find $modules -maxdepth 1 -type f -name coverage.out -print)
           if [ -z "$covs" ]; then
             echo "No coverage files found; creating empty coverage.out"
             echo "mode: atomic" > coverage.out
           else
             # shellcheck disable=SC2086
             gocovmerge $covs > coverage.out
+            # Quick summary
+            go tool cover -func=coverage.out | tail -n1 || true
           fi
-          # Quick summary
-          go tool cover -func=coverage.out | tail -n1 || true
 
       - name: Sonar Scan
         continue-on-error: true

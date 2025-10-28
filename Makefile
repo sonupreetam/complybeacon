@@ -29,33 +29,42 @@ all: test build
 # ------------------------------------------------------------------------------
 # Test Target
 # ------------------------------------------------------------------------------
-test: ## Runs unit tests for every module in the monorepo.
+test: ## Runs unit tests with coverage for every module in the monorepo.
 	@for m in $(MODULES); do \
-		(cd $$m && go test -v ./...); \
+		echo "========================================================================================================="; \
+		echo "Running tests for $$m..."; \
+		echo "========================================================================================================="; \
+		(cd $$m && go test -v -coverprofile=coverage.out -covermode=atomic ./...); \
 		if [ $$? -ne 0 ]; then \
 			echo "Tests failed for module: $$m"; \
 			exit 1; \
 		fi; \
+		echo "Coverage summary for $$m:"; \
+		(cd $$m && go tool cover -func=coverage.out | tail -n1) || true; \
+		echo "-------------------"; \
 	done
 	@echo "--- All tests passed! ---"
 .PHONY: test
 
-test-coverage: ## Runs tests with coverage for all modules
+test-race: ## Runs tests with race detection
 	@for m in $(MODULES); do \
-		echo "Running tests with coverage for $$m..."; \
-		(cd $$m && go test -v -race -coverprofile=coverage.out -covermode=atomic ./...); \
+		echo "Running tests with race detection for $$m..."; \
+		(cd $$m && go test -v -race ./...); \
 		if [ $$? -ne 0 ]; then \
 			echo "Tests failed for module: $$m"; \
 			exit 1; \
 		fi; \
 	done
-	@echo "--- All tests passed with coverage! ---"
-.PHONY: test-coverage
+	@echo "--- All tests passed with race detection! ---"
+.PHONY: test-race
 
-coverage-report: test-coverage ## Generate HTML coverage report
+coverage-report: test ## Generate HTML coverage report and show summary
 	@for m in $(MODULES); do \
 		echo "Generating coverage report for $$m..."; \
 		(cd $$m && go tool cover -html=coverage.out -o coverage.html); \
+		echo "Coverage summary for $$m:"; \
+		(cd $$m && go tool cover -func=coverage.out | tail -n1) || true; \
+		echo "-------------------"; \
 	done
 	@echo "--- Coverage reports generated! ---"
 .PHONY: coverage-report
