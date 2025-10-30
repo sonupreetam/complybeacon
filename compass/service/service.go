@@ -1,13 +1,14 @@
 package service
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/complytime/complybeacon/compass/api"
 
+	httpmw "github.com/complytime/complybeacon/compass/internal/middleware"
 	"github.com/complytime/complybeacon/compass/mapper"
 	"github.com/complytime/complybeacon/compass/mapper/plugins/basic"
 )
@@ -32,17 +33,49 @@ func (s *Service) PostV1Enrich(c *gin.Context) {
 	var req api.EnrichmentRequest
 	err := c.Bind(&req)
 	if err != nil {
+		slog.Warn("invalid enrichment request",
+			slog.String("request_id", httpmw.GetRequestID(c)),
+			slog.String("error", err.Error()),
+		)
 		sendCompassError(c, http.StatusBadRequest, "Invalid format for enrichment")
 		return
 	}
 
-	mapperPlugin, ok := s.set[mapper.ID(req.Evidence.PolicyEngineName)]
+	slog.Debug("enrich request received",
+		slog.String("request_id", httpmw.GetRequestID(c)),
+		slog.String("evidence_id", req.Evidence.Id),
+		slog.String("policy_id", req.Evidence.PolicyId),
+		slog.String("evidence_source", req.Evidence.Source),
+		slog.String("timestamp", req.Evidence.Timestamp.String()),
+	)
+
+	mapperPlugin, ok := s.set[mapper.ID(req.Evidence.Source)]
 	if !ok {
 		// Use fallback
 		log.Printf("WARNING: Policy engine %s not found in mapper set, using basic mapper fallback", req.Evidence.PolicyEngineName)
 		mapperPlugin = basic.NewBasicMapper()
 	}
+
+	slog.Debug("mapper selected",
+		slog.String("request_id", httpmw.GetRequestID(c)),
+		slog.String("mapper_id", string(mapperPlugin.PluginName())),
+		slog.Bool("fallback_used", !ok),
+	)
+
 	enrichedResponse := enrich(req.Evidence, mapperPlugin, s.scope)
+
+	statusId := -1
+	if enrichedResponse.Status.Id != nil {
+		statusId = int(*enrichedResponse.Status.Id)
+	}
+
+	slog.Debug("enrich result",
+		slog.String("request_id", httpmw.GetRequestID(c)),
+		slog.String("status_title", string(enrichedResponse.Status.Title)),
+		slog.Int("status_id", statusId),
+		slog.String("compliance_catalog", enrichedResponse.Compliance.Catalog),
+		slog.String("compliance_control", enrichedResponse.Compliance.Control),
+	)
 
 	c.JSON(http.StatusOK, enrichedResponse)
 }
