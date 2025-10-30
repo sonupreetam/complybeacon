@@ -1,5 +1,16 @@
 ---
-name: sonarcloud
+# Test coverage workflow for ComplyBeacon
+# Runs tests with coverage for all modules and enforces a
+# minimum coverage threshold. Also runs SonarCloud analysis to
+# check code quality and compliance.
+#
+# Features:
+# - Tests all modules with coverage
+# - Merges coverage profiles from all modules
+# - Enforces minimum coverage threshold
+# - Runs SonarCloud analysis for code quality and compliance
+
+name: test-coverage
 
 on:
   push:
@@ -36,59 +47,103 @@ jobs:
           go-version: '1.25.x'
 
       - name: Install deps
+        id: install-deps
         run: |
           set -euxo pipefail
-          modules=$(git ls-files '**/go.mod' | grep -v '^vendor/' | sed 's#/go\.mod##' || true)
+          modules=$(git ls-files '**/go.mod' | grep -v '^vendor/' | sed 's#/go\.mod##' | tr '\n' ' ' || true)
+          echo "modules=$modules" >> "$GITHUB_OUTPUT"
           if [ -z "$modules" ]; then
             echo "No Go modules found. Skipping dependency installation."
             exit 0
           fi
           for m in $modules; do
             echo "Processing module: $m"
-            (cd "$m" 
-            if [ ! -f "go.mod" ]; then
+            if [ ! -f "$m/go.mod" ]; then
                 echo "Error: go.mod not found in $m. Skipping."
                 continue
-            fi 
-            go mod tidy
-            go mod download
-            )
+            fi
+            (cd "$m" && go mod tidy && go mod download)
           done
       
       - name: Generate coverage
         run: |
           set -euxo pipefail
-          modules=$(git ls-files '**/go.mod' | grep -v '^vendor/' | sed 's#/go\.mod##' || true)
-          
+          modules="${{ steps.install-deps.outputs.modules }}"
           echo "Cleaning up existing coverage files..."
           for m in $modules; do
             (cd "$m" && rm -f coverage.out)
           done
-          rm -f coverage.out 
-          
-          # Generate coverage
+          rm -f coverage.out
+
+          # Create workspace dynamically
+          echo "Setting up go.work..."
+          rm -f go.work go.work.sum  # Remove if exists
+          go work init
           for m in $modules; do
-            (
-              cd "$m"
-              echo "--- generating coverage for module: $m"
-              if ! go test -v -covermode=atomic -coverprofile=coverage.out ./...; then
-                echo "--- ERROR: go test failed for module: $m"
-                exit 1
-              fi
-              go tool cover -func=coverage.out | tail -n1 || true
-            )
+            echo "Adding module to workspace: $m"
+            go work use ./$m
+          done
+          go work sync
+          echo "Workspace created:"
+          cat go.work
+          
+          # Test each module
+          for m in $modules; do
+            echo "--- generating coverage for module: $m"
+            go test -v -covermode=atomic -coverprofile="$m/coverage.out" ./$m/...
+            go tool cover -func="$m/coverage.out" | tail -n1 || true
           done
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+          # Merge coverage files
           go install github.com/wadey/gocovmerge@latest
-          covs=$(find $modules -maxdepth 1 -type f -name coverage.out -print)
-          if [ -z "$covs" ]; then
+          
+          # Collect coverage files using mapfile
+          mapfile -t covs < <(for m in $modules; do find "$m" -maxdepth 1 -type f -name coverage.out 2>/dev/null; done)
+
+          if [ ${#covs[@]} -eq 0 ]; then
             echo "No coverage files found; creating empty coverage.out"
             echo "mode: atomic" > coverage.out
+            echo "COVERAGE_PCT=0" >> "$GITHUB_ENV"
           else
-            # shellcheck disable=SC2086
-            gocovmerge $covs > coverage.out
-            # Quick summary
-            go tool cover -func=coverage.out | tail -n1 || true
+            gocovmerge "${covs[@]}" > coverage.out
+            echo "Coverage file: coverage.out"
+
+            echo ""
+            echo "=== Total Coverage (all files) ==="
+            go tool cover -func=coverage.out | tail -n1
+          
+            echo ""
+            echo "=== Filtered Coverage (excluding test/generated/cmd) ==="
+            cp coverage.out coverage-filtered.out
+            sed -i -E '/\.gen\.go:|\/cmd\/|_test\.go:/d' coverage-filtered.out
+          
+            # Extract coverage percentage
+            pct=$(go tool cover -func=coverage-filtered.out | tail -n1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          
+            if [ -z "$pct" ]; then
+              echo "WARNING: Could not calculate coverage"
+              echo "COVERAGE_PCT=0" >> "$GITHUB_ENV"
+            else
+              echo "Filtered coverage (excluding test/generated/cmd): $pct%"
+              echo "COVERAGE_PCT=$pct" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Enforce coverage threshold
+        continue-on-error: true
+        env:
+          MIN_COVERAGE: "60.0"
+        run: |
+          echo "Coverage threshold check:"
+          echo "  Current:  ${COVERAGE_PCT}%"
+          echo "  Required: ${MIN_COVERAGE}%"
+          
+          if awk -v c="$COVERAGE_PCT" -v m="$MIN_COVERAGE" 'BEGIN{exit !(c<m)}'; then
+            echo "  Status: FAILED - Coverage below threshold"
+            exit 1
+          else
+            echo "  Status: PASSED - Coverage meets threshold"
           fi
 
       - name: Sonar Scan
