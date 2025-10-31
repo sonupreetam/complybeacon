@@ -69,20 +69,22 @@ jobs:
       - name: Generate coverage
         run: |
           set -euxo pipefail
-          modules=$(git ls-files '**/go.mod' | grep -v '^vendor/' | sed 's#/go\.mod##' || true)
-          
+          modules=$(git ls-files '**/go.mod' \
+            | grep -v '^vendor/' | sed 's#/go\.mod##' || true)
+
           echo "Cleaning up existing coverage files..."
           for m in $modules; do
             (cd "$m" && rm -f coverage.out)
           done
-          rm -f coverage.out 
-          
+          rm -f coverage.out
+
           # Generate coverage
           for m in $modules; do
             (
               cd "$m"
               echo "--- generating coverage for module: $m"
-              if ! go test -v -covermode=atomic -coverprofile=coverage.out ./...; then
+              if ! go test -v -covermode=atomic \
+                  -coverprofile=coverage.out ./...; then
                 echo "--- ERROR: go test failed for module: $m"
                 exit 1
               fi
@@ -91,15 +93,42 @@ jobs:
           done
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
           go install github.com/wadey/gocovmerge@latest
-          covs=$(find $modules -maxdepth 1 -type f -name coverage.out -print)
+          # shellcheck disable=SC2086
+          covs=$(find $modules -maxdepth 1 -type f \
+            -name coverage.out -print)
           if [ -z "$covs" ]; then
             echo "No coverage files found; creating empty coverage.out"
             echo "mode: atomic" > coverage.out
           else
             # shellcheck disable=SC2086
             gocovmerge $covs > coverage.out
-            # Quick summary
-            go tool cover -func=coverage.out | tail -n1 || true
+            echo "Coverage file: coverage.out"
+
+            # Calculate coverage from merged file
+            # Format: path:lines num_statements execution_count
+            pct=$(awk '
+              /^mode:/ { next }
+              {
+                statements += $2
+                if ($3 > 0) covered += $2
+              }
+              END {
+                if (statements > 0) {
+                  coverage = 100.0 * covered / statements
+                  printf "%.1f", coverage
+                } else {
+                  print "0.0"
+                }
+              }
+            ' coverage.out)
+
+            if [ -z "$pct" ]; then
+              echo "No coverage calculated; treating as 0%."
+              echo "COVERAGE_PCT=0" >> "$GITHUB_ENV"
+            else
+              echo "COVERAGE_PCT=$pct" >> "$GITHUB_ENV"
+              echo "Total coverage: $pct%"
+            fi
           fi
 
       - name: Enforce coverage threshold
