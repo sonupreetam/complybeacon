@@ -109,6 +109,7 @@ jobs:
             gocovmerge "${covs[@]}" > coverage.out
             echo "Coverage file: coverage.out"
 
+<<<<<<< HEAD
             echo ""
             echo "=== Total Coverage (all files) ==="
             go tool cover -func=coverage.out | tail -n1
@@ -121,12 +122,59 @@ jobs:
             # Extract coverage percentage
             pct=$(go tool cover -func=coverage-filtered.out | tail -n1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
           
+=======
+            # Calculate coverage from merged file (including ALL code)
+            # Format: path:lines num_statements execution_count
+            pct_all=$(awk '
+              /^mode:/ { next }
+              {
+                statements += $2
+                if ($3 > 0) covered += $2
+              }
+              END {
+                if (statements > 0) {
+                  coverage = 100.0 * covered / statements
+                  printf "%.1f", coverage
+                } else {
+                  print "0.0"
+                }
+              }
+            ' coverage.out)
+            echo "Total coverage (all code): $pct_all%"
+
+            # Calculate coverage with exclusions (matching SonarCloud)
+            # Exclude: *_test.go, cmd/, *.gen.go files
+            pct=$(awk '
+              /^mode:/ { next }
+              # Skip lines matching exclusion patterns
+              /_test\.go:/ { next }
+              /\/cmd\/.*\.go:/ { next }
+              /\.gen\.go:/ { next }
+              {
+                statements += $2
+                if ($3 > 0) covered += $2
+              }
+              END {
+                if (statements > 0) {
+                  coverage = 100.0 * covered / statements
+                  printf "%.1f", coverage
+                } else {
+                  print "0.0"
+                }
+              }
+            ' coverage.out)
+
+>>>>>>> 6d639e6 (feat: Add coverage exclusions in Generate coverage)
             if [ -z "$pct" ]; then
               echo "WARNING: Could not calculate coverage"
               echo "COVERAGE_PCT=0" >> "$GITHUB_ENV"
             else
               echo "Filtered coverage (excluding test/generated/cmd): $pct%"
               echo "COVERAGE_PCT=$pct" >> "$GITHUB_ENV"
+<<<<<<< HEAD
+=======
+              echo "Coverage with exclusions (matching SonarCloud): $pct%"
+>>>>>>> 6d639e6 (feat: Add coverage exclusions in Generate coverage)
             fi
           fi
 
