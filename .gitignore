@@ -34,3 +34,8 @@ go.work.sum
 bin/
 data/
 
+# self-signed certificate
+hack/self-signed-cert/compass*
+hack/self-signed-cert/truthbeam*
+
+

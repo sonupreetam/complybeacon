@@ -119,3 +119,16 @@ jobs:
                 printf "Coverage meets threshold.\n"
               }
             }'
+
+      - name: Sonar Scan
+        continue-on-error: true
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.go.coverage.reportPaths=coverage.out
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.projectKey=rh-psce_complybeacon
+            -Dsonar.organization=rh-psce
