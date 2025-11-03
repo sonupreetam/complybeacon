@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"time"
 
+	requestid "github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,7 +14,7 @@ func AccessLogger() gin.HandlerFunc {
 		start := time.Now()
 		c.Next()
 
-		rid := GetRequestID(c)
+		rid := requestid.Get(c)
 		latency := time.Since(start)
 		path := c.Request.URL.Path
 		rawQuery := c.Request.URL.RawQuery

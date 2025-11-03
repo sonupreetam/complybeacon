@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 	middleware "github.com/oapi-codegen/gin-middleware"
 
@@ -27,7 +28,7 @@ func NewGinServer(service *compass.Service, port string) *http.Server {
 
 	r := gin.New()
 	r.Use(gin.Recovery())
-	r.Use(httpmw.RequestID(), httpmw.AccessLogger())
+	r.Use(requestid.New(), httpmw.AccessLogger())
 
 	r.Use(middleware.OapiRequestValidator(swagger))
 

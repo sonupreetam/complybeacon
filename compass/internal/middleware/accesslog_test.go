@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	requestid "github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 )
 
@@ -47,11 +48,11 @@ func TestAccessLogger_EmitsRecord(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
 	r := gin.New()
-	r.Use(RequestID(), AccessLogger())
+	r.Use(requestid.New(), AccessLogger())
 	r.GET("/hello", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 
 	req := httptest.NewRequest(http.MethodGet, "/hello", nil)
-	req.Header.Set("X-Request-Id", "accesslog-test")
+	req.Header.Set("X-Request-ID", "accesslog-test")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 

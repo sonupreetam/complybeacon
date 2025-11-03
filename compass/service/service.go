@@ -4,11 +4,10 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 
 	"github.com/complytime/complybeacon/compass/api"
-
-	httpmw "github.com/complytime/complybeacon/compass/internal/middleware"
 	"github.com/complytime/complybeacon/compass/mapper"
 	"github.com/complytime/complybeacon/compass/mapper/plugins/basic"
 )
@@ -34,7 +33,7 @@ func (s *Service) PostV1Enrich(c *gin.Context) {
 	err := c.Bind(&req)
 	if err != nil {
 		slog.Warn("invalid enrichment request",
-			slog.String("request_id", httpmw.GetRequestID(c)),
+			slog.String("request_id", requestid.Get(c)),
 			slog.String("error", err.Error()),
 		)
 		sendCompassError(c, http.StatusBadRequest, "Invalid format for enrichment")
@@ -42,7 +41,7 @@ func (s *Service) PostV1Enrich(c *gin.Context) {
 	}
 
 	slog.Debug("enrich request received",
-		slog.String("request_id", httpmw.GetRequestID(c)),
+		slog.String("request_id", requestid.Get(c)),
 		slog.String("evidence_id", req.Evidence.Id),
 		slog.String("policy_id", req.Evidence.PolicyId),
 		slog.String("evidence_source", req.Evidence.Source),
@@ -57,7 +56,7 @@ func (s *Service) PostV1Enrich(c *gin.Context) {
 	}
 
 	slog.Debug("mapper selected",
-		slog.String("request_id", httpmw.GetRequestID(c)),
+		slog.String("request_id", requestid.Get(c)),
 		slog.String("mapper_id", string(mapperPlugin.PluginName())),
 		slog.Bool("fallback_used", !ok),
 	)
@@ -70,7 +69,7 @@ func (s *Service) PostV1Enrich(c *gin.Context) {
 	}
 
 	slog.Debug("enrich result",
-		slog.String("request_id", httpmw.GetRequestID(c)),
+		slog.String("request_id", requestid.Get(c)),
 		slog.String("status_title", string(enrichedResponse.Status.Title)),
 		slog.Int("status_id", statusId),
 		slog.String("compliance_catalog", enrichedResponse.Compliance.Catalog),
