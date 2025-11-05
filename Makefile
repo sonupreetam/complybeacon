@@ -62,6 +62,22 @@ test-race: ## Runs tests with race detection
 	@echo "--- All tests passed with race detection! ---"
 .PHONY: test-race
 
+# ------------------------------------------------------------------------------
+# Dependencies for all modules
+# ------------------------------------------------------------------------------
+deps: ## Tidy, verify, download, and vendor deps for all modules
+	@for m in $(MODULES); do \
+		echo "Processing deps for $$m..."; \
+		(cd $$m && go mod tidy && go mod verify && go mod download && go mod vendor); \
+		if [ $$? -ne 0 ]; then \
+			echo "Deps failed for module: $$m"; \
+			exit 1; \
+		fi; \
+		echo "-------------------"; \
+	done
+	@echo "--- Deps completed for all modules ---"
+.PHONY: deps
+
 coverage-report: test ## Generate HTML coverage report and show summary
 	@for m in $(MODULES); do \
 		echo "Generating coverage report for $$m..."; \
