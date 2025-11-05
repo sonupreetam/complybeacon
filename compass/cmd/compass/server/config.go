@@ -17,7 +17,7 @@ import (
 
 func NewScopeFromCatalogPath(catalogPath string) (mapper.Scope, error) {
 	cleanedPath := filepath.Clean(catalogPath)
-	slog.Info("loading catalog", slog.String("path", cleanedPath))
+	slog.Debug("loading catalog", slog.String("path", cleanedPath))
 
 	catalogData, err := os.ReadFile(cleanedPath)
 	if err != nil {
@@ -30,7 +30,7 @@ func NewScopeFromCatalogPath(catalogPath string) (mapper.Scope, error) {
 		return nil, err
 	}
 
-	slog.Info("catalog loaded",
+	slog.Debug("catalog loaded",
 		slog.String("catalog_id", layer2Catalog.Metadata.Id),
 	)
 
@@ -56,7 +56,7 @@ type PluginConfig struct {
 
 func NewMapperSet(config *Config) (mapper.Set, error) {
 	pluginSet := make(mapper.Set)
-	slog.Info("loading plugins", slog.Int("count", len(config.Plugins)))
+	slog.Debug("loading plugins", slog.Int("count", len(config.Plugins)))
 
 	for _, pluginConf := range config.Plugins {
 		transformerId := mapper.ID(pluginConf.Id)
@@ -85,7 +85,7 @@ func NewMapperSet(config *Config) (mapper.Set, error) {
 		}
 		pluginSet[transformerId] = tfmr
 	}
-	slog.Info("plugins loaded", slog.Int("count", len(pluginSet)))
+	slog.Debug("plugins loaded", slog.Int("count", len(pluginSet)))
 	return pluginSet, nil
 }
 

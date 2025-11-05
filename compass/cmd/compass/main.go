@@ -75,7 +75,7 @@ func main() {
 	s := server.NewGinServer(service, port)
 
 	if skipTLS {
-		slog.Warn("insecure connections permitted; TLS is highly recommended for production")
+		slog.Warn("Insecure connections permitted. TLS is highly recommended for production")
 		if err := s.ListenAndServe(); err != nil {
 			slog.Error("server error", "err", err)
 			os.Exit(1)
