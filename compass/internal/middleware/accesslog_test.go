@@ -10,6 +10,8 @@ import (
 
 	requestid "github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type captureHandler struct {
@@ -58,9 +60,7 @@ func TestAccessLogger_EmitsRecord(t *testing.T) {
 
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
-	if len(ch.records) == 0 {
-		t.Fatal("expected at least one log record")
-	}
+	require.NotEmpty(t, ch.records, "expected at least one log record")
 
 	// Find the http_request record
 	var found *slog.Record
@@ -70,24 +70,15 @@ func TestAccessLogger_EmitsRecord(t *testing.T) {
 			break
 		}
 	}
-	if found == nil {
-		t.Fatalf("expected http_request log record, got %d records", len(ch.records))
-	}
+	require.NotNil(t, found, "expected http_request log record, got %d records", len(ch.records))
 
 	// Extract attrs to a map for assertions
 	got := map[string]any{}
 	found.Attrs(func(a slog.Attr) bool { got[a.Key] = a.Value.Any(); return true })
 
-	if got["request_id"] != "accesslog-test" {
-		t.Errorf("request_id mismatch: %v", got["request_id"])
-	}
-	if got["method"] != http.MethodGet {
-		t.Errorf("method mismatch: %v", got["method"])
-	}
-	if got["path"] != "/hello" {
-		t.Errorf("path mismatch: %v", got["path"])
-	}
-	if _, ok := got["status"]; !ok {
-		t.Errorf("missing status attr")
-	}
+	assert.Equal(t, "accesslog-test", got["request_id"], "request_id mismatch")
+	assert.Equal(t, http.MethodGet, got["method"], "method mismatch")
+	assert.Equal(t, "/hello", got["path"], "path mismatch")
+	_, ok := got["status"]
+	assert.True(t, ok, "missing status attr")
 }
