@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 )
 
@@ -26,7 +25,7 @@ func TestCreateDefaultConfig(t *testing.T) {
 	// Validate truthbeam default config values
 	assert.Empty(t, cfg.ClientConfig.Endpoint, "Expected default endpoint to be empty (must be set by user)")
 	assert.Equal(t, 30*time.Second, cfg.ClientConfig.Timeout, "Expected timeout 30s")
-	assert.Equal(t, configcompression.Type("gzip"), cfg.ClientConfig.Compression, "Expected gzip compression")
+	assert.Empty(t, cfg.ClientConfig.Compression, "Expected compression to be disabled by default for small payloads")
 	assert.Equal(t, 512*1024, cfg.ClientConfig.WriteBufferSize, "Expected write buffer size 512KB")
 }
 
@@ -63,7 +62,7 @@ func getValidConfig() *Config {
 		ClientConfig: confighttp.ClientConfig{
 			Endpoint:        "http://localhost:8081",
 			Timeout:         30 * time.Second,
-			Compression:     "gzip",
+			Compression:     "", // Compression disabled - unnecessary for small payloads
 			WriteBufferSize: 512 * 1024,
 			ReadBufferSize:  0,
 		},
@@ -75,8 +74,7 @@ func getInvalidConfig() *Config {
 	return &Config{
 		ClientConfig: confighttp.ClientConfig{
 			// Endpoint is the only required attribute
-			Timeout:     30 * time.Second,
-			Compression: "gzip",
+			Timeout: 30 * time.Second,
 		},
 	}
 }

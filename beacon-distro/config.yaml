@@ -13,6 +13,9 @@ processors:
   batch:
   truthbeam:
     endpoint: "https://0.0.0.0:8081"
+    # Disable compression for small enrichment API requests
+    # Compression overhead is unnecessary for ~200 byte payloads
+    compression: ""
   # For logs that are received from or something similar filelog instead of OTLP.
   # These are expected to be in OCSF format before entering the pipeline.
   transform/ocsf:

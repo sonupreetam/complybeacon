@@ -2,7 +2,7 @@
 client_config:
   endpoint: "http://localhost:8081"
   timeout: 30s
-  compression: gzip
+  # Compression disabled - unnecessary for small enrichment API requests
   write_buffer_size: 524288
   read_buffer_size: 0
   headers:

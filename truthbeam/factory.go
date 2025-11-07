@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/config/configcompression"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/processor"
@@ -27,8 +26,9 @@ func NewFactory() processor.Factory {
 func createDefaultConfig() component.Config {
 	clientConfig := confighttp.NewDefaultClientConfig()
 	clientConfig.Timeout = 30 * time.Second
-	// Default to gzip compression
-	clientConfig.Compression = configcompression.TypeGzip
+	// Compression disabled by default - enrichment requests are small (~200 bytes)
+	// Compression overhead is unnecessary for such small payloads
+	clientConfig.Compression = ""
 	// We almost read 0 bytes, so no need to tune ReadBufferSize.
 	clientConfig.WriteBufferSize = 512 * 1024
 

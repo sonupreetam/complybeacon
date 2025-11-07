@@ -58,3 +58,57 @@ jobs:
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           working-directory: ${{ matrix.modules }}
+
+  verify-codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install weaver
+        run: |
+          WEAVER_VERSION=$(curl -s https://api.github.com/repos/open-telemetry/weaver/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+          curl -L -o /tmp/weaver.tar.xz "https://github.com/open-telemetry/weaver/releases/download/${WEAVER_VERSION}/weaver-x86_64-unknown-linux-gnu.tar.xz"
+          mkdir -p $HOME/bin
+          tar -xJf /tmp/weaver.tar.xz
+          mv weaver-x86_64-unknown-linux-gnu/weaver $HOME/bin/weaver
+          chmod +x $HOME/bin/weaver
+          echo "$HOME/bin" >> $GITHUB_PATH
+          rm -rf weaver-x86_64-unknown-linux-gnu/
+
+      - name: Install oapi-codegen
+        run: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+
+      - name: Add Go bin to PATH
+        run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+      - name: Setup workspace
+        run: make workspace
+
+      - name: Install dependencies
+        run: |
+          for m in ./compass ./proofwatch ./truthbeam; do
+            (cd "$m" && go mod download)
+          done
+
+      - name: Run code generation
+        run: |
+          make api-codegen
+          make weaver-codegen
+
+      - name: Check for diffs
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "ERROR: Code generation produced diffs. Please run 'make api-codegen' and 'make weaver-codegen' and commit the changes."
+            echo ""
+            echo "Changes detected:"
+            git status --porcelain
+            echo ""
+            echo "Diff:"
+            git diff
+            exit 1
+          else
+            echo "SUCCESS: No diffs detected. Code generation is up to date."
+          fi

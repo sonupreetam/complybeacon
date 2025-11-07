@@ -8,13 +8,25 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	middleware "github.com/oapi-codegen/gin-middleware"
 
 	"github.com/complytime/complybeacon/compass/api"
 	compass "github.com/complytime/complybeacon/compass/service"
 )
 
 func NewGinServer(service *compass.Service, port string) *http.Server {
+	swagger, err := api.GetSwagger()
+	if err != nil {
+		log.Fatalf("Error loading swagger spec\n: %s", err)
+	}
+
+	// Clear out the servers array in the swagger spec, that skips validating
+	// that server names match. We don't know how this thing will be run.
+	swagger.Servers = nil
+
 	r := gin.Default()
+
+	r.Use(middleware.OapiRequestValidator(swagger))
 
 	api.RegisterHandlers(r, service)
 

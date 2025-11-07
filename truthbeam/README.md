@@ -36,12 +36,14 @@ The `truthbeam` processor can be integrated into any OpenTelemetry Collector dis
 {
   "evidence": {
     "timestamp": "2025-01-05T12:30:00Z",
-    "source": "conforma",
-    "policyId": "github_branch_protection",
-    "decision": "fail",
-    "action": "audit",
-    "categoryId": 6,
-    "classId": 6007
+    "policyEngineName": "conforma",
+    "policyRuleId": "github_branch_protection",
+    "policyEvaluationStatus": "Failed",
+    "rawData": {
+      "action": "audit",
+      "categoryId": 6,
+      "classId": 6007
+    }
   }
 }
 ```
@@ -51,11 +53,22 @@ The `truthbeam` processor can be integrated into any OpenTelemetry Collector dis
 ```json
 {
   "compliance": {
-    "catalog": "NIST-800-53",
-    "control": "AC-2"
-  },
-  "status": {
-    "title": "Fail"
+    "control": {
+      "id": "OSPS-QA-07.01",
+      "category": "Access Control",
+      "catalogId": "OSPS-B",
+      "applicability": ["Production", "Staging"],
+      "remediationDescription": "Implement proper branch protection rules requiring at least one approval before merging to main branch"
+    },
+    "frameworks": {
+      "frameworks": ["NIST-800-53", "ISO-27001", "SOC-2"],
+      "requirements": ["AC-2.1", "AC-2.2", "AC-2.3"]
+    },
+    "risk": {
+      "level": "High"
+    },
+    "status": "NON_COMPLIANT",
+    "enrichmentStatus": "success"
   }
 }
 ```

@@ -17,6 +17,9 @@ processors:
   batch:
   truthbeam:
     endpoint: "https://compass:8081"
+    # Disable compression for small enrichment API requests
+    # Compression overhead is unnecessary for ~200 byte payloads
+    compression: ""
     tls:
       # Configure TLS settings
       # Path to the CA certificate for verifying the server's certificate.
@@ -31,6 +34,8 @@ processors:
     error_mode: ignore
     log_statements:
       - context: log
+        conditions:
+          - body != nil
         statements:
           - set(observed_time, Now()) where observed_time_unix_nano == 0
           - set(time, observed_time) where time_unix_nano == 0
