@@ -42,16 +42,17 @@ func (s *Service) PostV1Enrich(c *gin.Context) {
 
 	slog.Debug("enrich request received",
 		slog.String("request_id", requestid.Get(c)),
-		slog.String("evidence_id", req.Evidence.Id),
-		slog.String("policy_id", req.Evidence.PolicyId),
-		slog.String("evidence_source", req.Evidence.Source),
+		slog.String("policy_rule_id", req.Evidence.PolicyRuleId),
+		slog.String("policy_engine_name", req.Evidence.PolicyEngineName),
 		slog.String("timestamp", req.Evidence.Timestamp.String()),
 	)
 
-	mapperPlugin, ok := s.set[mapper.ID(req.Evidence.Source)]
+	mapperPlugin, ok := s.set[mapper.ID(req.Evidence.PolicyEngineName)]
 	if !ok {
 		// Use fallback
-		log.Printf("WARNING: Policy engine %s not found in mapper set, using basic mapper fallback", req.Evidence.PolicyEngineName)
+		slog.Warn("mapper not found; using basic mapper fallback",
+			slog.String("policy_engine_name", req.Evidence.PolicyEngineName),
+		)
 		mapperPlugin = basic.NewBasicMapper()
 	}
 
@@ -63,17 +64,11 @@ func (s *Service) PostV1Enrich(c *gin.Context) {
 
 	enrichedResponse := enrich(req.Evidence, mapperPlugin, s.scope)
 
-	statusId := -1
-	if enrichedResponse.Status.Id != nil {
-		statusId = int(*enrichedResponse.Status.Id)
-	}
-
 	slog.Debug("enrich result",
 		slog.String("request_id", requestid.Get(c)),
-		slog.String("status_title", string(enrichedResponse.Status.Title)),
-		slog.Int("status_id", statusId),
-		slog.String("compliance_catalog", enrichedResponse.Compliance.Catalog),
-		slog.String("compliance_control", enrichedResponse.Compliance.Control),
+		slog.String("compliance_status", string(enrichedResponse.Compliance.Status)),
+		slog.String("compliance_catalog", enrichedResponse.Compliance.Control.CatalogId),
+		slog.String("compliance_control", enrichedResponse.Compliance.Control.Id),
 	)
 
 	c.JSON(http.StatusOK, enrichedResponse)
