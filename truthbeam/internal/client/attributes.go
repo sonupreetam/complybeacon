@@ -17,34 +17,34 @@ const COMPLIANCE_CONTROL_CATEGORY = "compliance.control.category"
 // Unique identifier for the security control and assessment requirement being assessed
 const COMPLIANCE_CONTROL_ID = "compliance.control.id"
 
-// Status of the compliance enrichment process: success, unmapped, partial, or unknown
+// Result of the compliance framework mapping and enrichment process, indicating whether compliance context was successfully added to the event
 const COMPLIANCE_ENRICHMENT_STATUS = "compliance.enrichment.status"
 
 // Regulatory or industry standards being evaluated for compliance
 const COMPLIANCE_FRAMEWORKS = "compliance.frameworks"
 
-// Action taken by the policy engine: Block, Allow, Remediate, Waive, Notify, or Unknown
+// Remediation action determined by the policy engine in response to the compliance assessment result
 const COMPLIANCE_REMEDIATION_ACTION = "compliance.remediation.action"
 
 // Description of the recommended remediation strategy for this control
 const COMPLIANCE_REMEDIATION_DESCRIPTION = "compliance.remediation.description"
 
-// Whether the exception was is active for this enforcement
+// Whether the exception is active for this enforcement
 const COMPLIANCE_REMEDIATION_EXCEPTION_ACTIVE = "compliance.remediation.exception.active"
 
 // Unique identifier for the approved exception, if applicable
 const COMPLIANCE_REMEDIATION_EXCEPTION_ID = "compliance.remediation.exception.id"
 
-// Result of the policy enforcement action
+// Outcome of the remediation action execution, indicating whether the remediation was successfully applied
 const COMPLIANCE_REMEDIATION_STATUS = "compliance.remediation.status"
 
 // Compliance requirement identifiers from the frameworks impacted
 const COMPLIANCE_REQUIREMENTS = "compliance.requirements"
 
-// Risk level associated with non-compliance: Critical, High, Medium, Low, or Informational
+// Severity classification of the risk posed by non-compliance with the control requirement
 const COMPLIANCE_RISK_LEVEL = "compliance.risk.level"
 
-// Compliance verdict: COMPLIANT, NON_COMPLIANT, EXEMPT, NOT_APPLICABLE, or UNKNOWN
+// Overall compliance determination for the assessed resource or control, indicating whether it meets the compliance requirements
 const COMPLIANCE_STATUS = "compliance.status"
 
 // Name of the policy engine that performed the evaluation or enforcement action
@@ -56,7 +56,7 @@ const POLICY_ENGINE_VERSION = "policy.engine.version"
 // Additional context about the policy evaluation result
 const POLICY_EVALUATION_MESSAGE = "policy.evaluation.message"
 
-// Result of the policy evaluation: Not Run, Passed, Failed, Needs Review, Not Applicable, or Unknown
+// Outcome of the policy rule evaluation, indicating the result of the policy check
 const POLICY_EVALUATION_RESULT = "policy.evaluation.result"
 
 // Unique identifier for the policy rule being evaluated or enforced
