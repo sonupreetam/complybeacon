@@ -43,7 +43,7 @@ Before Deploying: Please read the following **NOTE**.
 ⚠️ **NOTE:**
 To enable evidence log synchronization to AWS S3 and Hyperproof, you must configure the following environment variables. The collector will fail to start if the S3 configuration is invalid.
 
-For more detailed information, please refer to the integration guide: [Sync_Evidence2Hyperproof](integration/Sync_Evidence2Hyperproof.md).
+For more detailed information, please refer to the integration guide: [Sync_Evidence2Hyperproof](docs/integration/Sync_Evidence2Hyperproof.md).
 
 | Environment Variable   | Description                                            |   
 |------------------------|---------------------------------------------------------|
