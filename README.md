@@ -64,6 +64,8 @@ to
 
 `exporters: [ debug, otlphttp/logs ]`
 
+The `awss3/logs` configuration in `exporters` section should also be commented.
+
 B. **Comment collector.environment part of [compose.yml](compose.yaml)** as the AWS S3 environment variables will no longer be needed.
 
 Once you've reviewed the **NOTE** above, follow these steps to deploy the infrastructure and test the pipeline.
