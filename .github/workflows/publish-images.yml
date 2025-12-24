@@ -28,33 +28,38 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
-  packages: write
-  id-token: write
-  attestations: write
-  security-events: write
+  contents: none
+  packages: none
+  id-token: none
+  attestations: none
+  security-events: none
+
 
 jobs:
   build-compass:
-    if: github.event.repository.fork == false
-    uses: complytime/org-infra/.github/workflows/reusable_publish_image.yml@main
+    uses: complytime/org-infra/.github/workflows/ci_publish_images.yml@main
     with:
       component_name: compass
       context_path: .
-      dockerfile_path: compass/images/Containerfile.compass
-      image_name: ghcr.io/complytime/complybeacon-compass
+      containerfile_path: compass/images/Containerfile.compass
+      image_name: complytime/complybeacon-compass
+      image_description: ComplyBeacon Compass service
+      image_vendor: ComplyTime
+      registries: ghcr.io
       allowed_identity_regex: https://github.com/${{ github.repository }}(/.*)?
       force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
     secrets: inherit
 
   build-beacon-distro:
-    if: github.event.repository.fork == false
-    uses: complytime/org-infra/.github/workflows/reusable_publish_image.yml@main
+    uses: complytime/org-infra/.github/workflows/ci_publish_images.yml@main
     with:
       component_name: beacon-distro
       context_path: ./beacon-distro
-      dockerfile_path: beacon-distro/Containerfile.collector
-      image_name: ghcr.io/complytime/complybeacon-beacon-distro
-      allowed_identity_regex: "https://github.com/${{ github.repository }}(/.*)?"
+      containerfile_path: beacon-distro/Containerfile.collector
+      image_name: complytime/complybeacon-beacon-distro
+      image_description: ComplyBeacon Beacon Distro collector
+      image_vendor: ComplyTime
+      registries: ghcr.io
+      allowed_identity_regex: https://github.com/${{ github.repository }}(/.*)?
       force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
     secrets: inherit
