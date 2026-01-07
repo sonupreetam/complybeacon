@@ -3,9 +3,9 @@ name: publish-images
 
 on:
   push:
-    branches: 
+    branches:
       - main
-    tags: [ 'v*.*.*' ]
+    tags: ['v*.*.*']
     paths:
       - '**/Containerfile*'
       - '.github/workflows/**'
@@ -28,7 +28,6 @@ permissions:
 
 jobs:
   detect-images:
- 
     if: github.repository == 'complytime/complybeacon'
     runs-on: ubuntu-latest
     outputs:
@@ -40,12 +39,13 @@ jobs:
         run: |
           set -euo pipefail
           entries=()
-          
+
           # Auto-discover all Containerfiles
           while IFS= read -r fullpath; do
-            dir="$(dirname "$fullpath" | sed 's|^\./||')"
+            dir="$(dirname "$fullpath")"
+            dir="${dir#./}"
             file="$(basename "$fullpath")"
-            
+
             # Determine context (parent directory if in subdirectory like images/)
             if [[ "$dir" == */images ]]; then
               context="./${dir%/images}"
@@ -54,20 +54,20 @@ jobs:
               context="./${dir}"
               containerfile="${file}"
             fi
-            
-            base="$(echo "$context" | sed 's|^\./||')"
+
+            base="${context#./}"
             image="ghcr.io/complytime/complybeacon-${base}"
             # Containerfile path must be relative to repo root for docker/build-push-action
             full_containerfile_path="${context}/${containerfile}"
             entries+=( "{\"name\":\"${base}\",\"context\":\"${context}\",\"dockerfile\":\"${full_containerfile_path}\",\"image\":\"${image}\"}" )
           done < <(find . -maxdepth 3 -type f -name 'Containerfile*' -not -path "./.github/*" -print | sort -u)
-          
+
           if [[ "${#entries[@]}" -eq 0 ]]; then
             echo "No Containerfiles found. Producing empty matrix."
             echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          
+
           json="$(printf '{ "include": [ %s ] }' "$(IFS=,; echo "${entries[*]}")")"
           echo "matrix=${json}" >> "$GITHUB_OUTPUT"
           echo "Discovered matrix: ${json}"
@@ -114,7 +114,7 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
-        
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
@@ -185,7 +185,7 @@ jobs:
 
       - name: Export digest
         id: digest
-        run: echo "digest=${{ steps.build.outputs.digest }}" >> $GITHUB_OUTPUT
+        run: echo "digest=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
 
       # STAGE 5: Attestations for supply chain security
       - name: Attest build provenance (Stage 5 - Attestations)
@@ -198,7 +198,7 @@ jobs:
       # STAGE 6: Sign image with Cosign
       - name: Install Cosign
         uses: sigstore/cosign-installer@053f9b74638557590800a301da1ba82351507e2c # v3.8.1
-        
+
       - name: Sign image (Stage 6 - Signing)
         env:
           COSIGN_EXPERIMENTAL: "true"
@@ -222,18 +222,18 @@ jobs:
       # Summary
       - name: Published image summary
         run: |
-          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Successfully Published Image
-          
+
           **Service:** ${{ matrix.name }}
           **Image:** ${{ matrix.image }}
           **Digest:** ${{ steps.digest.outputs.digest }}
-          
+
           ### Tags
           \`\`\`
           $(echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n')
           \`\`\`
-          
+
           ### Security Checks Passed
           - Secret scanning
           - Vulnerability scanning
