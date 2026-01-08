@@ -1,0 +1,70 @@
+---
+# Fork Test: Build and publish images to test in fork before upstream merge
+# DELETE THIS FILE BEFORE MERGING TO UPSTREAM
+name: "[Fork Test] Publish Images"
+
+on:
+  push:
+    branches:
+      - main
+      - 'test/**'  # Allow testing on test branches
+    tags: ['v*.*.*']
+    paths:
+      - '**/Containerfile*'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild without cache'
+        type: boolean
+        required: false
+        default: false
+
+# Prevent concurrent runs for the same ref (branch/tag)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+# Grant minimum permissions required by reusable workflows
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+  security-events: write
+  actions: read
+
+
+jobs:
+  build-compass:
+    uses: complytime/org-infra/.github/workflows/ci_publish_images.yml@main
+    with:
+      component_name: compass
+      context_path: .
+      containerfile_path: compass/images/Containerfile.compass
+      # Use fork namespace for testing
+      image_name: ${{ github.repository_owner }}/complybeacon-compass
+      image_description: ComplyBeacon Compass service (fork test)
+      image_vendor: ComplyTime
+      registries: ghcr.io
+      # Allow signatures from org-infra workflows
+      allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
+      force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
+    secrets: inherit
+
+  build-beacon-distro:
+    uses: complytime/org-infra/.github/workflows/ci_publish_images.yml@main
+    with:
+      component_name: beacon-distro
+      context_path: ./beacon-distro
+      containerfile_path: beacon-distro/Containerfile.collector
+      # Use fork namespace for testing
+      image_name: ${{ github.repository_owner }}/complybeacon-beacon-distro
+      image_description: ComplyBeacon Beacon Distro collector (fork test)
+      image_vendor: ComplyTime
+      registries: ghcr.io
+      # Allow signatures from org-infra workflows
+      allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
+      force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
+    secrets: inherit
+
