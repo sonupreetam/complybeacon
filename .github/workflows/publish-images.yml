@@ -27,12 +27,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+# Grant minimum permissions required by reusable workflows
 permissions:
-  contents: none
-  packages: none
-  id-token: none
-  attestations: none
-  security-events: none
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+  security-events: write
+  actions: read
 
 
 jobs:
