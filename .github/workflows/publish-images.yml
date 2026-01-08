@@ -48,7 +48,7 @@ jobs:
       image_description: TEST - ComplyBeacon Compass service
       image_vendor: ComplyTime
       registries: ghcr.io
-      allowed_identity_regex: https://github.com/${{ github.repository }}(/.*)?
+      allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
       force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
     secrets: inherit
 
@@ -62,6 +62,6 @@ jobs:
       image_description: TEST - ComplyBeacon Beacon Distro collector
       image_vendor: ComplyTime
       registries: ghcr.io
-      allowed_identity_regex: https://github.com/${{ github.repository }}(/.*)?
+      allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
       force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
     secrets: inherit
