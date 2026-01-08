@@ -1,0 +1,13 @@
+name: Test Reusable
+on: workflow_dispatch
+jobs:
+  test-push:
+    if: ${{ github.ref_protected }}
+    uses: complytime/org-infra/.github/workflows/reusable_push.yml@main
+    with:
+      component_name: test
+      containerfile_path: beacon-distro/Containerfile.collector
+      context_path: ./beacon-distro
+      image_name: sonupreetam/test-image
+      registries: ghcr.io
+      force_rebuild: true
