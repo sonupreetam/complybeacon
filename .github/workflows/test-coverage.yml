@@ -37,12 +37,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 2
 
       - name: Set up Go
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: '1.25.x'
 
@@ -64,7 +64,7 @@ jobs:
             fi
             (cd "$m" && go mod tidy && go mod download)
           done
-      
+
       - name: Generate coverage
         run: |
           set -euxo pipefail
@@ -74,7 +74,7 @@ jobs:
             (cd "$m" && rm -f coverage.out)
           done
           rm -f coverage.out
-          
+
           # Test each module
           for m in $modules; do
             echo "--- generating coverage for module: $m"
@@ -84,7 +84,7 @@ jobs:
               go tool cover -func=coverage.out | tail -n1 || true
             )
           done
-          
+
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
           # Create workspace for merged coverage analysis
@@ -92,13 +92,13 @@ jobs:
           rm -f go.work go.work.sum
           go work init
           for m in $modules; do
-            go work use ./$m
+            go work use "./$m"
           done
           go work sync
-          
+
           # Merge coverage files
           go install github.com/wadey/gocovmerge@latest
-          
+
           # Collect coverage files using mapfile
           mapfile -t covs < <(for m in $modules; do find "$m" -maxdepth 1 -type f -name coverage.out 2>/dev/null; done)
 
@@ -113,15 +113,15 @@ jobs:
             echo ""
             echo "=== Total Coverage (all files) ==="
             go tool cover -func=coverage.out | tail -n1
-          
+
             echo ""
             echo "=== Filtered Coverage (excluding test/generated/cmd) ==="
             cp coverage.out coverage-filtered.out
             sed -i -E '/\.gen\.go:|\/cmd\/|_test\.go:/d' coverage-filtered.out
-          
+
             # Extract coverage percentage
             pct=$(go tool cover -func=coverage-filtered.out | tail -n1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
-          
+
             if [ -z "$pct" ]; then
               echo "WARNING: Could not calculate coverage"
               echo "COVERAGE_PCT=0" >> "$GITHUB_ENV"
@@ -130,7 +130,7 @@ jobs:
               echo "COVERAGE_PCT=$pct" >> "$GITHUB_ENV"
             fi
           fi
-          
+
           # Cleanup workspace
           echo "Cleaning up workspace..."
           rm -f go.work go.work.sum
@@ -143,7 +143,7 @@ jobs:
           echo "Coverage threshold check:"
           echo "  Current:  ${COVERAGE_PCT}%"
           echo "  Required: ${MIN_COVERAGE}%"
-          
+
           if awk -v c="$COVERAGE_PCT" -v m="$MIN_COVERAGE" 'BEGIN{exit !(c<m)}'; then
             echo "  Status: FAILED - Coverage below threshold"
             exit 1
@@ -153,7 +153,7 @@ jobs:
 
       - name: Sonar Scan
         continue-on-error: true
-        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
