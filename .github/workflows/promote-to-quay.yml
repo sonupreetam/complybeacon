@@ -1,6 +1,5 @@
 ---
 # Promote to Quay Workflow - TEST VERSION
-# Using complytime Quay namespace (matches robot account)
 
 name: Promote to Quay
 
@@ -32,7 +31,7 @@ jobs:
       source_image: sonupreetam/test-compass
       source_tag: sha-${{ inputs.source_sha || github.sha }}
       dest_registry: quay.io
-      dest_image: complytime/test-compass-from-fork
+      dest_image: spreetam/test-compass-from-fork
       dest_tag: test-${{ github.run_number }}
       create_semver_tags: false
       verify_source_signature: false
