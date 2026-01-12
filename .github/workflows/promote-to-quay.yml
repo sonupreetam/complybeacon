@@ -25,6 +25,8 @@ concurrency:
 
 jobs:
   promote-compass:
+    permissions:
+      packages: read
     uses: complytime/org-infra/.github/workflows/reusable_promote.yml@main
     with:
       source_registry: ghcr.io
@@ -34,8 +36,7 @@ jobs:
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
       verify_source_signature: true
-      allowed_identity_regex: >-
-        https://github.com/complytime/org-infra(/.*)?
+      allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
     secrets:
       dest_username: ${{ secrets.QUAY_USERNAME }}
       dest_password: ${{ secrets.QUAY_PASSWORD }}
@@ -49,14 +50,15 @@ jobs:
     with:
       image_name: quay.io/complytime/complybeacon-compass
       digest: ${{ needs.promote-compass.outputs.digest }}
-      allowed_identity_regex: >-
-        https://github.com/complytime/org-infra(/.*)?
+      allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
       verify_attestations: false
     secrets:
       quay_username: ${{ secrets.QUAY_USERNAME }}
       quay_password: ${{ secrets.QUAY_PASSWORD }}
 
   promote-beacon-distro:
+    permissions:  
+      packages: read
     uses: complytime/org-infra/.github/workflows/reusable_promote.yml@main
     with:
       source_registry: ghcr.io
@@ -66,8 +68,7 @@ jobs:
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
       verify_source_signature: true
-      allowed_identity_regex: >-
-        https://github.com/complytime/org-infra(/.*)?
+      allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
     secrets:
       dest_username: ${{ secrets.QUAY_USERNAME }}
       dest_password: ${{ secrets.QUAY_PASSWORD }}
@@ -81,8 +82,7 @@ jobs:
     with:
       image_name: quay.io/complytime/complybeacon-beacon-distro
       digest: ${{ needs.promote-beacon-distro.outputs.digest }}
-      allowed_identity_regex: >-
-        https://github.com/complytime/org-infra(/.*)?
+      allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
       verify_attestations: false
     secrets:
       quay_username: ${{ secrets.QUAY_USERNAME }}
