@@ -13,10 +13,10 @@ on:
         required: false
         type: string
       dry_run:
-        description: 'Dry run - skip actual promotion, just validate'
+        description: 'Dry run - validate everything but skip actual promotion'
         required: false
         type: boolean
-        default: false
+        default: true
 
 permissions:
   packages: write
@@ -27,38 +27,127 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Debug job to show what would be promoted
-  debug-info:
+  # Validate and show what would be promoted
+  validate:
     runs-on: ubuntu-latest
+    outputs:
+      source_sha: ${{ steps.info.outputs.source_sha }}
+      source_tag: ${{ steps.info.outputs.source_tag }}
+      compass_exists: ${{ steps.check.outputs.compass_exists }}
+      beacon_exists: ${{ steps.check.outputs.beacon_exists }}
     steps:
       - name: Show promotion info
+        id: info
         run: |
+          SOURCE_SHA="${{ inputs.source_sha || github.sha }}"
+          SOURCE_TAG="sha-${SOURCE_SHA}"
+          
+          echo "source_sha=${SOURCE_SHA}" >> $GITHUB_OUTPUT
+          echo "source_tag=${SOURCE_TAG}" >> $GITHUB_OUTPUT
+          
           echo "=== Promotion Info ==="
           echo "Repository Owner: ${{ github.repository_owner }}"
-          echo "Source SHA: ${{ inputs.source_sha || github.sha }}"
-          echo "Source Tag: sha-${{ inputs.source_sha || github.sha }}"
+          echo "Source SHA: ${SOURCE_SHA}"
+          echo "Source Tag: ${SOURCE_TAG}"
           echo "Dest Tag: ${{ github.ref_name }}"
           echo "Dry Run: ${{ inputs.dry_run }}"
           echo ""
           echo "=== Source Images (GHCR) ==="
-          echo "ghcr.io/${{ github.repository_owner }}/complybeacon-compass:sha-${{ inputs.source_sha || github.sha }}"
-          echo "ghcr.io/${{ github.repository_owner }}/complybeacon-beacon-distro:sha-${{ inputs.source_sha || github.sha }}"
+          echo "ghcr.io/${{ github.repository_owner }}/complybeacon-compass:${SOURCE_TAG}"
+          echo "ghcr.io/${{ github.repository_owner }}/complybeacon-beacon-distro:${SOURCE_TAG}"
           echo ""
           echo "=== Destination Images (Quay) ==="
           echo "quay.io/${{ github.repository_owner }}/complybeacon-compass:${{ github.ref_name }}"
           echo "quay.io/${{ github.repository_owner }}/complybeacon-beacon-distro:${{ github.ref_name }}"
 
+      - name: Check if source images exist
+        id: check
+        run: |
+          echo "=== Checking Source Images ==="
+          
+          # Check compass image
+          COMPASS_IMAGE="ghcr.io/${{ github.repository_owner }}/complybeacon-compass:sha-${{ inputs.source_sha || github.sha }}"
+          echo "Checking: ${COMPASS_IMAGE}"
+          if docker manifest inspect "${COMPASS_IMAGE}" > /dev/null 2>&1; then
+            echo "✅ Compass image exists"
+            echo "compass_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Compass image NOT found"
+            echo "compass_exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check beacon-distro image
+          BEACON_IMAGE="ghcr.io/${{ github.repository_owner }}/complybeacon-beacon-distro:sha-${{ inputs.source_sha || github.sha }}"
+          echo "Checking: ${BEACON_IMAGE}"
+          if docker manifest inspect "${BEACON_IMAGE}" > /dev/null 2>&1; then
+            echo "✅ Beacon-distro image exists"
+            echo "beacon_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Beacon-distro image NOT found"
+            echo "beacon_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Quay secrets
+        run: |
+          echo "=== Checking Secrets ==="
+          if [ -n "${{ secrets.QUAY_USERNAME }}" ]; then
+            echo "✅ QUAY_USERNAME is set"
+          else
+            echo "❌ QUAY_USERNAME is NOT set"
+          fi
+          
+          if [ -n "${{ secrets.QUAY_PASSWORD }}" ]; then
+            echo "✅ QUAY_PASSWORD is set"
+          else
+            echo "❌ QUAY_PASSWORD is NOT set"
+          fi
+
+      - name: Validation summary
+        run: |
+          echo "=== Validation Summary ==="
+          echo ""
+          
+          READY=true
+          
+          if [ "${{ steps.check.outputs.compass_exists }}" != "true" ]; then
+            echo "❌ FAIL: Compass source image not found"
+            READY=false
+          else
+            echo "✅ PASS: Compass source image exists"
+          fi
+          
+          if [ "${{ steps.check.outputs.beacon_exists }}" != "true" ]; then
+            echo "❌ FAIL: Beacon-distro source image not found"
+            READY=false
+          else
+            echo "✅ PASS: Beacon-distro source image exists"
+          fi
+          
+          echo ""
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "🔵 DRY RUN MODE - Promotion jobs will be skipped"
+            echo ""
+            echo "To run the actual promotion:"
+            echo "  1. Ensure source images exist (run Publish Images workflow first)"
+            echo "  2. Re-run this workflow with 'Dry run' UNCHECKED"
+          else
+            if [ "$READY" == "true" ]; then
+              echo "🟢 READY - Proceeding with promotion"
+            else
+              echo "🔴 NOT READY - Fix the issues above before promoting"
+              exit 1
+            fi
+          fi
+
   promote-compass:
     if: ${{ inputs.dry_run != true }}
-    needs: debug-info
+    needs: validate
     uses: complytime/org-infra/.github/workflows/reusable_promote.yml@main
     with:
       source_registry: ghcr.io
-      # Use fork namespace for source
       source_image: ${{ github.repository_owner }}/complybeacon-compass
       source_tag: sha-${{ inputs.source_sha || github.sha }}
       dest_registry: quay.io
-      # Use fork namespace for destination
       dest_image: ${{ github.repository_owner }}/complybeacon-compass
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
@@ -77,7 +166,6 @@ jobs:
       id-token: write
     uses: complytime/org-infra/.github/workflows/reusable_sign_and_verify.yml@main
     with:
-      # Use fork namespace
       image_name: quay.io/${{ github.repository_owner }}/complybeacon-compass
       digest: ${{ needs.promote-compass.outputs.digest }}
       allowed_identity_regex: >-
@@ -89,15 +177,13 @@ jobs:
 
   promote-beacon-distro:
     if: ${{ inputs.dry_run != true }}
-    needs: debug-info
+    needs: validate
     uses: complytime/org-infra/.github/workflows/reusable_promote.yml@main
     with:
       source_registry: ghcr.io
-      # Use fork namespace for source
       source_image: ${{ github.repository_owner }}/complybeacon-beacon-distro
       source_tag: sha-${{ inputs.source_sha || github.sha }}
       dest_registry: quay.io
-      # Use fork namespace for destination
       dest_image: ${{ github.repository_owner }}/complybeacon-beacon-distro
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
@@ -116,7 +202,6 @@ jobs:
       id-token: write
     uses: complytime/org-infra/.github/workflows/reusable_sign_and_verify.yml@main
     with:
-      # Use fork namespace
       image_name: quay.io/${{ github.repository_owner }}/complybeacon-beacon-distro
       digest: ${{ needs.promote-beacon-distro.outputs.digest }}
       allowed_identity_regex: >-
@@ -125,4 +210,3 @@ jobs:
     secrets:
       quay_username: ${{ secrets.QUAY_USERNAME }}
       quay_password: ${{ secrets.QUAY_PASSWORD }}
-
