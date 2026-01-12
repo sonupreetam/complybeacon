@@ -17,18 +17,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-# Grant minimum permissions required by reusable workflows
-permissions:
-  contents: read
-  packages: write
-  id-token: write
-  attestations: write
-  security-events: write
-  actions: read
-
-
 jobs:
   build-compass:
+    # Job-level permissions required by reusable workflow
+    permissions:
+      contents: read
+      packages: write         # Required: push images to GHCR
+      id-token: write         # Required: keyless signing (Sigstore OIDC)
+      attestations: write     # Required: generate SBOM/provenance attestations
+      security-events: write  # Required: upload SARIF security scan results
+      actions: read
     uses: complytime/org-infra/.github/workflows/ci_publish_images.yml@main
     with:
       component_name: compass
@@ -45,6 +43,14 @@ jobs:
     secrets: inherit
 
   build-beacon-distro:
+    # Job-level permissions required by reusable workflow
+    permissions:
+      contents: read
+      packages: write         # Required: push images to GHCR
+      id-token: write         # Required: keyless signing (Sigstore OIDC)
+      attestations: write     # Required: generate SBOM/provenance attestations
+      security-events: write  # Required: upload SARIF security scan results
+      actions: read
     uses: complytime/org-infra/.github/workflows/ci_publish_images.yml@main
     with:
       component_name: beacon-distro
@@ -59,4 +65,3 @@ jobs:
       allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
       force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
     secrets: inherit
-
