@@ -1,6 +1,8 @@
 ---
 # Best-practices pipeline: security transparency (SBOM, attestations)
 # with operational excellence (pre-push validation)
+# NOTE: Scorecard flags 'write' permissions but these are REQUIRED for image publishing
+# See: https://docs.github.com/en/actions/sharing-automations/reusing-workflows
 name: Publish Images
 
 on:
@@ -12,7 +14,6 @@ on:
       - '**/Containerfile*'
       - '.github/workflows/**'
   schedule:
-    # Monthly rebuilds for base image security updates
     - cron: '0 0 */30 * *'
   workflow_dispatch:
     inputs:
@@ -22,7 +23,7 @@ on:
         required: false
         default: false
 
-permissions: 
+permissions:
   contents: none
   packages: none
   id-token: none
@@ -36,8 +37,6 @@ concurrency:
 
 jobs:
   build-compass:
-    # NOTE: Scorecard flags 'write' permissions but these are REQUIRED for image publishing
-    # See: https://docs.github.com/en/actions/sharing-automations/reusing-workflows
     permissions:
       contents: read
       packages: write         # Required: push images to GHCR
