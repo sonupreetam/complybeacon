@@ -6,10 +6,10 @@ name: "[Fork Test] Publish Images"
 on:
   push:
     branches:
-      - main
-      - fork-testing
-      - 'test/**'  # Allow testing on test branches
-    tags: ['v*.*.*', 'test-*']
+      - fork-testing  # Always run on fork-testing (no path filter)
+    tags: ['test-*']
+  # Path-filtered runs for other branches
+  pull_request:
     paths:
       - '**/Containerfile*'
       - '.github/workflows/**'
