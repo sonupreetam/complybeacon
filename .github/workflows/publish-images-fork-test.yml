@@ -4,15 +4,6 @@
 name: "[Fork Test] Publish Images"
 
 on:
-  push:
-    branches:
-      - fork-testing  # Always run on fork-testing (no path filter)
-    tags: ['test-*']
-  # Path-filtered runs for other branches
-  pull_request:
-    paths:
-      - '**/Containerfile*'
-      - '.github/workflows/**'
   workflow_dispatch:
     inputs:
       force_rebuild:
