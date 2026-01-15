@@ -1,0 +1,80 @@
+---
+# Best-practices pipeline: security transparency (SBOM, attestations)
+# with operational excellence (pre-push validation)
+# NOTE: Scorecard flags 'write' permissions but these are REQUIRED for image publishing
+# See: https://docs.github.com/en/actions/sharing-automations/reusing-workflows
+name: Test Publish Images
+
+on:
+  push:
+    branches:
+      - main
+      - feat/secure-image-publish
+    tags: ['test-v*.*.*']
+    paths:
+      - '**/Containerfile*'
+      - '.github/workflows/**'
+  schedule:
+    - cron: '0 0 */30 * *'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild without cache'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: none
+  packages: none
+  id-token: none
+  attestations: none
+  security-events: none
+  actions: none
+# Prevent concurrent runs for the same ref (branch/tag)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-compass:
+    permissions:
+      contents: read
+      packages: write         # Required: push images to GHCR
+      id-token: write         # Required: keyless signing (Sigstore OIDC)
+      attestations: write     # Required: generate SBOM/provenance attestations
+      security-events: write  # Required: upload SARIF security scan results
+      actions: read
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_images.yml@main
+    with:
+      component_name: compass
+      context_path: .
+      containerfile_path: compass/images/Containerfile.compass
+      image_name: sonupreetam/test-compass
+      image_description: Test ComplyBeacon Compass service
+      image_vendor: ComplyTime
+      registries: ghcr.io
+      allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
+      force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
+    secrets: inherit
+
+  build-beacon-distro:
+    permissions:
+      contents: read
+      packages: write         # Required: push images to GHCR
+      id-token: write         # Required: keyless signing (Sigstore OIDC)
+      attestations: write     # Required: generate SBOM/provenance attestations
+      security-events: write  # Required: upload SARIF security scan results
+      actions: read
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_images.yml@main
+    with:
+      component_name: beacon-distro
+      context_path: ./beacon-distro
+      containerfile_path: beacon-distro/Containerfile.collector
+      image_name: sonupreetam/test-beacon-distro
+      image_description: Test ComplyBeacon Beacon Distro collector
+      image_vendor: ComplyTime
+      registries: ghcr.io
+      allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
+      force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
+    secrets: inherit
