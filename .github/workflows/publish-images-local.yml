@@ -8,10 +8,6 @@ name: Test Publish Images
 on:
   push:
     branches:
-<<<<<<< HEAD
-      - main
-=======
->>>>>>> 618453d47d1654a0d6541769b17eae859ff067ff
       - feat/secure-image-publish
     tags: ['test-v*.*.*']
     paths:
