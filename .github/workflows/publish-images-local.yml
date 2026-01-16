@@ -1,8 +1,6 @@
 ---
-# Best-practices pipeline: security transparency (SBOM, attestations)
-# with operational excellence (pre-push validation)
-# NOTE: Scorecard flags 'write' permissions but these are REQUIRED for image publishing
-# See: https://docs.github.com/en/actions/sharing-automations/reusing-workflows
+# Test Publish Image Workflow
+
 name: Test Publish Images
 
 on:
