@@ -37,6 +37,7 @@ jobs:
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
       verify_source_signature: true
+      verify_attestations: false
       allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
     secrets:
       dest_username: ${{ secrets.QUAY_USERNAME }}
@@ -70,6 +71,7 @@ jobs:
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
       verify_source_signature: true
+      verify_attestations: false
       allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
     secrets:
       dest_username: ${{ secrets.QUAY_USERNAME }}
