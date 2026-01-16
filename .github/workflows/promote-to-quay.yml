@@ -33,6 +33,7 @@ jobs:
       source_image: complytime/complybeacon-compass
       source_tag: sha-${{ inputs.source_sha || github.sha }}
       dest_registry: quay.io
+      dest_image: continuouscompliance/complytime-compass
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
       verify_source_signature: true
@@ -48,7 +49,7 @@ jobs:
       id-token: write
     uses: complytime/org-infra/.github/workflows/reusable_sign_and_verify.yml@main
     with:
-      image_name: quay.io/complytime/complybeacon-compass
+      image_name: quay.io/continuouscompliance/complybeacon-compass
       digest: ${{ needs.promote-compass.outputs.digest }}
       allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
       verify_attestations: false
@@ -65,6 +66,7 @@ jobs:
       source_image: complytime/complybeacon-beacon-distro
       source_tag: sha-${{ inputs.source_sha || github.sha }}
       dest_registry: quay.io
+      dest_image: continuouscompliance/complytime-beacon-distro
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
       verify_source_signature: true
@@ -80,7 +82,7 @@ jobs:
       id-token: write
     uses: complytime/org-infra/.github/workflows/reusable_sign_and_verify.yml@main
     with:
-      image_name: quay.io/complytime/complybeacon-beacon-distro
+      image_name: quay.io/continuouscompliance/complybeacon-beacon-distro
       digest: ${{ needs.promote-beacon-distro.outputs.digest }}
       allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
       verify_attestations: false

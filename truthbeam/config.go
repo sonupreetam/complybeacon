@@ -12,9 +12,9 @@ import (
 
 // Config defines configuration for the truthbeam processor.
 type Config struct {
-	ClientConfig   confighttp.ClientConfig `mapstructure:",squash"`           // squash ensures fields are correctly decoded in embedded struct.
-	CacheTTL       time.Duration           `mapstructure:"cache_ttl"`         // Cache TTL for compliance metadata
-	CacheCapacity int `mapstructure:"cache_capacity"` // Cache capacity in number of entries (0 = use default from client.DefaultCacheCapacity)
+	ClientConfig  confighttp.ClientConfig `mapstructure:",squash"`        // squash ensures fields are correctly decoded in embedded struct.
+	CacheTTL      time.Duration           `mapstructure:"cache_ttl"`      // Cache TTL for compliance metadata
+	CacheCapacity int                     `mapstructure:"cache_capacity"` // Cache capacity in number of entries (0 = use default from client.DefaultCacheCapacity)
 }
 
 var _ component.Config = (*Config)(nil)
