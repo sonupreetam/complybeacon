@@ -34,8 +34,8 @@ func createDefaultConfig() component.Config {
 	clientConfig.WriteBufferSize = 512 * 1024
 
 	return &Config{
-		ClientConfig:   clientConfig,
-		CacheTTL:       client.DefaultCacheTTL,
+		ClientConfig:  clientConfig,
+		CacheTTL:      client.DefaultCacheTTL,
 		CacheCapacity: client.DefaultCacheCapacity,
 	}
 }
