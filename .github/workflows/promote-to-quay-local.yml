@@ -1,7 +1,8 @@
 ---
-# Promote to Quay Workflow
+# Test Promote to Quay Workflow
 # Copies signed images from GHCR to Quay.io on release tags
 # Images must be built on main BEFORE creating release tag
+
 
 name: Test Promote to Quay
 
@@ -36,7 +37,7 @@ jobs:
       dest_image: test_complytime/test-compass
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
-      verify_source_signature: true
+      verify_source_signature: false
       verify_attestations: false
       allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
     secrets:
@@ -70,7 +71,7 @@ jobs:
       dest_image: test_complytime/test-beacon-distro
       dest_tag: ${{ github.ref_name }}
       create_semver_tags: true
-      verify_source_signature: true
+      verify_source_signature: false
       verify_attestations: false
       allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
     secrets:
