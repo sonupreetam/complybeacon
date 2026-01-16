@@ -8,7 +8,10 @@ name: Test Publish Images
 on:
   push:
     branches:
+<<<<<<< HEAD
       - main
+=======
+>>>>>>> 618453d47d1654a0d6541769b17eae859ff067ff
       - feat/secure-image-publish
     tags: ['test-v*.*.*']
     paths:
@@ -45,7 +48,7 @@ jobs:
       attestations: write     # Required: generate SBOM/provenance attestations
       security-events: write  # Required: upload SARIF security scan results
       actions: read
-    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_images.yml@main
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_image.yml@main
     with:
       component_name: compass
       context_path: .
@@ -66,7 +69,7 @@ jobs:
       attestations: write     # Required: generate SBOM/provenance attestations
       security-events: write  # Required: upload SARIF security scan results
       actions: read
-    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_images.yml@main
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_image.yml@main
     with:
       component_name: beacon-distro
       context_path: ./beacon-distro
