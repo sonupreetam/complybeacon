@@ -1,0 +1,95 @@
+---
+# Test Publish and Promote Image Workflow
+# Builds image, pushes to GHCR, promotes to Quay, and signs
+
+name: Test Publish Images
+
+on:
+  push:
+    branches:
+      - feat/secure-image-publish
+    tags: ['compass-v*.*.*']
+    paths:
+      - '**/Containerfile*'
+      - '.github/workflows/**'
+  schedule:
+    - cron: '0 0 */30 * *'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild without cache'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: none
+  packages: none
+  id-token: none
+  attestations: none
+  security-events: none
+  actions: none
+
+# Prevent concurrent runs for the same ref (branch/tag)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Step 1: Build and push to GHCR
+  build-compass:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      security-events: write
+      actions: read
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_image.yml@main
+    with:
+      component_name: compass
+      context_path: .
+      containerfile_path: compass/images/Containerfile.compass
+      image_name: sonupreetam/test-compass
+      image_description: Test ComplyBeacon Compass service
+      image_vendor: ComplyTime
+      registries: ghcr.io
+      allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
+      force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
+    secrets: inherit
+
+  # Step 2: Promote from GHCR to Quay
+  promote-compass:
+    needs: build-compass
+    permissions:
+      packages: read
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_promote.yml@main
+    with:
+      source_registry: ghcr.io
+      source_image: sonupreetam/test-compass
+      source_tag: sha-${{ github.sha }}
+      dest_registry: quay.io
+      dest_image: test_complytime/test-compass
+      dest_tag: sha-${{ github.sha }}
+      create_semver_tags: false
+      verify_source_signature: false
+      allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
+    secrets:
+      dest_username: ${{ secrets.QUAY_USERNAME }}
+      dest_password: ${{ secrets.QUAY_PASSWORD }}
+
+  # Step 3: Sign the promoted image on Quay
+  sign-compass:
+    needs: promote-compass
+    permissions:
+      packages: write
+      id-token: write
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_sign_and_verify.yml@main
+    with:
+      image_name: quay.io/test_complytime/test-compass
+      digest: ${{ needs.promote-compass.outputs.digest }}
+      allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
+      verify_attestations: false
+    secrets:
+      quay_username: ${{ secrets.QUAY_USERNAME }}
+      quay_password: ${{ secrets.QUAY_PASSWORD }}

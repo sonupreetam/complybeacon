@@ -213,9 +213,9 @@ cd compass
 go run ./cmd/compass --config hack/demo/config.yaml --catalog hack/sampledata/osps.yaml --port 8081 --skip-tls
 
 # Test the API
-curl -X POST http://localhost:8081/v1/enrich \
+curl -X POST http://localhost:8081/v1/metadata \
   -H "Content-Type: application/json" \
-  -d '{"evidence": {"id": "test", "timestamp": "2024-01-01T00:00:00Z", "source": "test", "policyId": "test", "decision": "compliant", "action": "observed"}}'
+  -d '{"policy": {"policyEngineName": "OPA", "policyRuleId": "deny-root-user"}}'
 ```
 
 **Adding New Mappers:**
@@ -387,5 +387,6 @@ make undeploy
 - [Podman Documentation](https://docs.podman.io/)
 - [Project Design Document](./DESIGN.md)
 - [Attribute Documentation](./attributes/)
+- [Containers Guide](https://github.com/complytime/community/blob/main/CONTAINERS_GUIDE.md)
 
 For questions or support, please open an issue in the GitHub repository.

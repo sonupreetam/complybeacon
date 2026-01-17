@@ -1,6 +1,8 @@
 ---
 # Best-practices pipeline: security transparency (SBOM, attestations)
 # with operational excellence (pre-push validation)
+# NOTE: Scorecard flags 'write' permissions but these are REQUIRED for image publishing
+# See: https://docs.github.com/en/actions/sharing-automations/reusing-workflows
 name: Publish Images
 
 on:
@@ -12,7 +14,6 @@ on:
       - '**/Containerfile*'
       - '.github/workflows/**'
   schedule:
-    # Monthly rebuilds for base image security updates
     - cron: '0 0 */30 * *'
   workflow_dispatch:
     inputs:
@@ -36,8 +37,6 @@ concurrency:
 
 jobs:
   build-compass:
-    # NOTE: Scorecard flags 'write' permissions but these are REQUIRED for image publishing
-    # See: https://docs.github.com/en/actions/sharing-automations/reusing-workflows
     permissions:
       contents: read
       packages: write         # Required: push images to GHCR
@@ -50,8 +49,8 @@ jobs:
       component_name: compass
       context_path: .
       containerfile_path: compass/images/Containerfile.compass
-      image_name: sonupreetam/test-compass
-      image_description: TEST - ComplyBeacon Compass service
+      image_name: complytime/complybeacon-compass
+      image_description: ComplyBeacon Compass service
       image_vendor: ComplyTime
       registries: ghcr.io
       allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?
@@ -71,8 +70,8 @@ jobs:
       component_name: beacon-distro
       context_path: ./beacon-distro
       containerfile_path: beacon-distro/Containerfile.collector
-      image_name: sonupreetam/test-beacon-distro
-      image_description: TEST - ComplyBeacon Beacon Distro collector
+      image_name: complytime/complybeacon-beacon-distro
+      image_description: ComplyBeacon Beacon Distro collector
       image_vendor: ComplyTime
       registries: ghcr.io
       allowed_identity_regex: https://github.com/complytime/org-infra(/.*)?

@@ -33,12 +33,11 @@ services:
           basicAuth: false
           isDefault: true
           version: 1
-          editable: true 
+          editable: true
         EOF
         /run.sh
 
   compass:
-    image: ghcr.io/complytime/complybeacon-compass:latest
     build:
       context: .
       dockerfile: ./compass/images/Containerfile.compass
@@ -49,7 +48,7 @@ services:
       # Development/Testing purpose
       - ./hack/self-signed-cert/compass.crt:/certs/compass.crt:Z
       - ./hack/self-signed-cert/compass.key:/certs/compass.key:Z
-    command: [ "--config", "/config.yaml", "--catalog", "/sampledata/osps.yaml",  "--port", "8081"]
+    command: ["--config", "/config.yaml", "--catalog", "/sampledata/osps.yaml", "--port", "8081"]
     ports:
       - "8081:8081"
 
@@ -60,7 +59,6 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - S3_BUCKETNAME=${S3_BUCKETNAME}
       - S3_OBJ_DIR=${S3_OBJ_DIR}
-    image: ghcr.io/complytime/complybeacon-beacon-distro:latest
     build:
       context: ./beacon-distro
       dockerfile: Containerfile.collector
