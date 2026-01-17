@@ -1,5 +1,6 @@
 ---
-# Test Publish Images Workflow
+# Test Publish and Promote Image Workflow
+# Builds image, pushes to GHCR, promotes to Quay, and signs
 
 name: Test Publish Images
 
@@ -28,19 +29,21 @@ permissions:
   attestations: none
   security-events: none
   actions: none
+
 # Prevent concurrent runs for the same ref (branch/tag)
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  # Step 1: Build and push to GHCR
   build-compass:
     permissions:
       contents: read
-      packages: write         # Required: push images to GHCR
-      id-token: write         # Required: keyless signing (Sigstore OIDC)
-      attestations: write     # Required: generate SBOM/provenance attestations
-      security-events: write  # Required: upload SARIF security scan results
+      packages: write
+      id-token: write
+      attestations: write
+      security-events: write
       actions: read
     uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_image.yml@main
     with:
@@ -55,23 +58,38 @@ jobs:
       force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
     secrets: inherit
 
-  build-beacon-distro:
+  # Step 2: Promote from GHCR to Quay
+  promote-compass:
+    needs: build-compass
     permissions:
-      contents: read
-      packages: write         # Required: push images to GHCR
-      id-token: write         # Required: keyless signing (Sigstore OIDC)
-      attestations: write     # Required: generate SBOM/provenance attestations
-      security-events: write  # Required: upload SARIF security scan results
-      actions: read
-    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_publish_image.yml@main
+      packages: read
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_promote.yml@main
     with:
-      component_name: beacon-distro
-      context_path: ./beacon-distro
-      containerfile_path: beacon-distro/Containerfile.collector
-      image_name: sonupreetam/test-beacon-distro
-      image_description: Test ComplyBeacon Beacon Distro collector
-      image_vendor: ComplyTime
-      registries: ghcr.io
+      source_registry: ghcr.io
+      source_image: sonupreetam/test-compass
+      source_tag: sha-${{ github.sha }}
+      dest_registry: quay.io
+      dest_image: test_complytime/test-compass
+      dest_tag: sha-${{ github.sha }}
+      create_semver_tags: false
+      verify_source_signature: false
       allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
-      force_rebuild: ${{ github.event.inputs.force_rebuild == 'true' }}
-    secrets: inherit
+    secrets:
+      dest_username: ${{ secrets.QUAY_USERNAME }}
+      dest_password: ${{ secrets.QUAY_PASSWORD }}
+
+  # Step 3: Sign the promoted image on Quay
+  sign-compass:
+    needs: promote-compass
+    permissions:
+      packages: write
+      id-token: write
+    uses: sonupreetam/org-infra-tests/.github/workflows/reusable_sign_and_verify.yml@main
+    with:
+      image_name: quay.io/test_complytime/test-compass
+      digest: ${{ needs.promote-compass.outputs.digest }}
+      allowed_identity_regex: https://github.com/sonupreetam/org-infra-tests(/.*)?
+      verify_attestations: false
+    secrets:
+      quay_username: ${{ secrets.QUAY_USERNAME }}
+      quay_password: ${{ secrets.QUAY_PASSWORD }}
