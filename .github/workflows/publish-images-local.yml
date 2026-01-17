@@ -8,7 +8,7 @@ on:
   push:
     branches:
       - feat/secure-image-publish
-    tags: ['test-v*.*.*']
+    tags: ['compass-v*.*.*']
     paths:
       - '**/Containerfile*'
       - '.github/workflows/**'
