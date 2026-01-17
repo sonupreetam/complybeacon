@@ -387,5 +387,6 @@ make undeploy
 - [Podman Documentation](https://docs.podman.io/)
 - [Project Design Document](./DESIGN.md)
 - [Attribute Documentation](./attributes/)
+- [Containers Guide](https://github.com/complytime/community/blob/main/CONTAINERS_GUIDE.md)
 
 For questions or support, please open an issue in the GitHub repository.
