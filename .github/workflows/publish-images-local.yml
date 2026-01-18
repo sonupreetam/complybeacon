@@ -7,7 +7,7 @@ name: Test Publish Images
 on:
   push:
     branches:
-      - feat/secure-image-publish
+      - feat/secure-image-publish-test
     tags: ['compass-v*.*.*']
     paths:
       - '**/Containerfile*'
