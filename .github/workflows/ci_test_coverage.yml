@@ -10,7 +10,7 @@
 # - Enforces minimum coverage threshold
 # - Runs SonarCloud analysis for code quality and compliance
 
-name: test-coverage
+name: Test Coverage
 
 on:
   push:
