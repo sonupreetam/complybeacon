@@ -31,9 +31,9 @@ func (s *otterCacheStore) Delete(key string) error {
 
 func NewOtterStore(ttl time.Duration, maxEntries int) (Cache, error) {
 	opts := &otter.Options[string, Compliance]{
-		MaximumSize:    maxEntries,
+		MaximumSize:      maxEntries,
 		ExpiryCalculator: otter.ExpiryWriting[string, Compliance](ttl),
-		StatsRecorder:  stats.NewCounter(),
+		StatsRecorder:    stats.NewCounter(),
 	}
 	cache := otter.Must(opts)
 	return &otterCacheStore{cache: cache}, nil
