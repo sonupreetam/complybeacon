@@ -49,7 +49,7 @@ git tag -s v1.2.3 -m "Release v1.2.3"
 git push origin v1.2.3
 ```
 
-The `promote.yml` workflow automatically:
+The [`ci_publish_quay.yml`](../.github/workflows/ci_publish_quay.yml) workflow automatically:
 - Verifies the GHCR image signature
 - Copies the image to Quay.io (preserving signatures)
 - Creates semver tags (`v1.2.3` → `1.2`, `1`)
@@ -59,7 +59,7 @@ The `promote.yml` workflow automatically:
 
 Releases are created as needed. Maintainers coordinate releases via issues or discussions.
 
-## Setting Up a New Repository
+## Setting Up The Repository
 
 ### 1. Create Caller Workflows
 
@@ -72,13 +72,13 @@ Add these secrets in **Settings** → **Secrets and variables** → **Actions**:
 | `QUAY_USERNAME` | Promotion | Quay.io robot account username |
 | `QUAY_PASSWORD` | Promotion | Quay.io robot account token |
 
-> **Note:** GHCR uses `GITHUB_TOKEN` automatically—no additional secrets needed.
+> **Note:** GHCR uses `GITHUB_TOKEN` automatically, no additional secrets needed.
 
 ### 3. Enable Branch Protection
 
 In **Settings** → **Branches** → **main**:
-- ✅ Require status checks to pass
-- ✅ Require branches to be up to date
+- Require status checks to pass
+- Require branches to be up to date
 
 ## Verifying Images
 
@@ -86,12 +86,12 @@ After publishing, verify images are properly signed:
 
 ```bash
 # Verify GHCR image
-cosign verify ghcr.io/complytime/my-image:sha-abc123 \
+cosign verify ghcr.io/complytime/complytime-compass \
   --certificate-identity-regexp='https://github.com/complytime/.*' \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com
 
 # Verify Quay image
-cosign verify quay.io/complytime/my-image:v1.2.3 \
+cosign verify quay.io/continuouscompliance/complytime-compass \
   --certificate-identity-regexp='https://github.com/complytime/.*' \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com
 ```
@@ -100,8 +100,8 @@ cosign verify quay.io/complytime/my-image:v1.2.3 \
 
 | Task | Workflow | Trigger |
 |------|----------|---------|
-| Build & publish to GHCR | `ci_publish_ghcr.yml` | Push to `main` |
-| Promote to Quay.io | `ci_promote_quay.yml` | Push tag `v*.*.*` |
+| Build & publish to GHCR | [`ci_publish_ghcr.yml`](../.github/workflows/ci_publish_ghcr.yml) | Push to `main` |
+| Promote to Quay.io | [`ci_publish_quay.yml`](../.github/workflows/ci_publish_quay.yml)| Push tag `v*.*.*` |
 
 ## More Information
 - [Sigstore Documentation](https://docs.sigstore.dev/) — Keyless signing details
