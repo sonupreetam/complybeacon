@@ -2,7 +2,7 @@
 
 This guide explains how to publish in GHCR and promote in Quay for container images by using the org-infra reusable workflows.
 
-## Process Overview
+## Process Overview TL;DR
 
 The publishing process values **security and automation** to provide predictable, low-cost image releases.
 
@@ -12,16 +12,135 @@ Main Branch Push  →  Build + Scan + Sign  →  GHCR
 Release Tag (v*)  →  Verify + Promote     →  Quay.io
 ```
 
+---
+
+## Main Branch Pipeline (Build → Scan → Sign)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              MAIN BRANCH PUSH                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+│                          org-infra reusable workflows                           │
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+
+  ╔═══════════════════════════════════════════════════════════════════════════╗
+  ║  STAGE 1: BUILD & PUSH                                                    ║
+  ║  ┌─────────────────────────────────────────────────────────────────────┐  ║
+  ║  │            reusable_publish_ghcr.yml                                │  ║
+  ║  │  ┌───────────────────────────────────────────────────────────────┐  │  ║
+  ║  │  │  • Checkout source                                            │  │  ║
+  ║  │  │  • Login to GHCR                                              │  │  ║
+  ║  │  │  • Build multi-platform image (Buildx)                        │  │  ║
+  ║  │  │  • Push to ghcr.io/org/image:sha-<commit>                     │  │  ║
+  ║  │  │  • Auto-generate SBOM + SLSA provenance (buildx attestations) │  │  ║
+  ║  │  └───────────────────────────────────────────────────────────────┘  │  ║
+  ║  │                                                                     │  ║
+  ║  │  OUTPUTS: digest (sha256:...), image (ghcr.io/org/image)            │  ║
+  ║  └─────────────────────────────────────────────────────────────────────┘  ║
+  ╚═══════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      │ digest, image
+                                      ▼
+  ╔═══════════════════════════════════════════════════════════════════════════╗
+  ║  STAGE 2: VULNERABILITY SCAN                                              ║
+  ║  ┌─────────────────────────────────────────────────────────────────────┐  ║
+  ║  │            reusable_vuln_scan.yml                                   │  ║
+  ║  │  ┌───────────────────────────────────────────────────────────────┐  │  ║
+  ║  │  │  [OSV-Scanner]     Dependency CVE scan (lockfiles)            │  │  ║
+  ║  │  │  [Trivy Source]    Secrets + misconfig scan                   │  │  ║
+  ║  │  │  [Trivy Image]     Container OS/runtime vuln scan             │  │  ║
+  ║  │  │                                                               │  │  ║
+  ║  │  │  • Upload SARIF results to GitHub Security tab                │  │  ║
+  ║  │  │  • Attach vuln attestation to image (cosign attest)           │  │  ║
+  ║  │  └───────────────────────────────────────────────────────────────┘  │  ║
+  ║  │                                                                     │  ║
+  ║  │  OUTPUTS: trivy_image_scan_passed, vuln_attestation_attached        │  ║
+  ║  └─────────────────────────────────────────────────────────────────────┘  ║
+  ╚═══════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      │ digest, scan results
+                                      ▼
+  ╔═══════════════════════════════════════════════════════════════════════════╗
+  ║  STAGE 3: SIGN & VERIFY                                                   ║
+  ║  ┌─────────────────────────────────────────────────────────────────────┐  ║
+  ║  │            reusable_sign_and_verify.yml                             │  ║
+  ║  │  ┌───────────────────────────────────────────────────────────────┐  │  ║
+  ║  │  │  • Keyless signing via Sigstore/Fulcio (OIDC)                 │  │  ║
+  ║  │  │  • cosign sign image@digest                                   │  │  ║
+  ║  │  │                                                               │  │  ║
+  ║  │  │  Verify all attestations:                                     │  │  ║
+  ║  │  │  ✓ Signature (identity: github.com/org/*)                     │  │  ║
+  ║  │  │  ✓ SLSA Provenance                                            │  │  ║
+  ║  │  │  ✓ SBOM (SPDX)                                                │  │  ║
+  ║  │  │  ✓ Vulnerability scan attestation                             │  │  ║
+  ║  │  └───────────────────────────────────────────────────────────────┘  │  ║
+  ║  └─────────────────────────────────────────────────────────────────────┘  ║
+  ╚═══════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      ▼
+                      ┌───────────────────────────────┐
+                      │  ✅ Image Ready in GHCR       │
+                      │  ghcr.io/org/image:sha-abc123 │
+                      │  + signature                  │
+                      │  + SBOM                       │
+                      │  + SLSA provenance            │
+                      │  + vuln attestation           │
+                      └───────────────────────────────┘
+```
+
+---
+
+## Release Pipeline (Promote to Production)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        RELEASE TAG PUSH (v1.2.3)                                │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+  ╔═══════════════════════════════════════════════════════════════════════════╗
+  ║  STAGE 4: PROMOTE TO PRODUCTION REGISTRY                                  ║
+  ║  ┌─────────────────────────────────────────────────────────────────────┐  ║
+  ║  │            reusable_promote.yml                                     │  ║
+  ║  │  ┌───────────────────────────────────────────────────────────────┐  │  ║
+  ║  │  │  1. Lookup source: ghcr.io/org/image:sha-<commit> → digest    │  │  ║
+  ║  │  │                                                               │  │  ║
+  ║  │  │  2. Pre-promotion verification:                               │  │  ║
+  ║  │  │     ✓ Verify source signature                                 │  │  ║
+  ║  │  │     ✓ Verify SLSA provenance                                  │  │  ║
+  ║  │  │     ✓ Verify SBOM                                             │  │  ║
+  ║  │  │     ✓ Verify vuln attestation                                 │  │  ║
+  ║  │  │                                                               │  │  ║
+  ║  │  │  3. cosign copy (preserves all signatures + attestations)     │  │  ║
+  ║  │  │     ghcr.io/org/image@sha256:... → quay.io/org/image:v1.2.3   │  │  ║
+  ║  │  │                                                               │  │  ║
+  ║  │  │  4. Apply semver tags: v1.2.3 → 1.2, 1                        │  │  ║
+  ║  │  │                                                               │  │  ║
+  ║  │  │  5. Post-promotion verification (destination registry)        │  │  ║
+  ║  │  └───────────────────────────────────────────────────────────────┘  │  ║
+  ║  │                                                                     │  ║
+  ║  │  OUTPUTS: digest, dest_image_full                                   │  ║
+  ║  └─────────────────────────────────────────────────────────────────────┘  ║
+  ╚═══════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      ▼
+                      ┌───────────────────────────────┐
+                      │  ✅ Production Image Ready    │
+                      │  quay.io/org/image:v1.2.3    │
+                      │  quay.io/org/image:1.2       │
+                      │  quay.io/org/image:1         │
+                      │  (all with preserved certs)  │
+                      └───────────────────────────────┘
+```
+
+---
+
 ## Publishing Images
 
 Images are automatically built and published when changes are pushed to the `main` branch.
-
-### What Happens Automatically
-
-1. **Build**: Images with SBOM and SLSA provenance
-2. **Scan**: OSV Trivy vulnerability scan (blocks on HIGH/CRITICAL)
-3. **Sign**: Keyless signing via Sigstore/Cosign
-4. **Push**: Published to GHCR with `sha-<commit>` tag
 
 ### Manual Trigger
 
@@ -48,12 +167,6 @@ git pull origin main
 git tag -s v1.2.3 -m "Release v1.2.3"
 git push origin v1.2.3
 ```
-
-The [`ci_publish_quay.yml`](../.github/workflows/ci_publish_quay.yml) workflow automatically:
-- Verifies the GHCR image signature
-- Copies the image to Quay.io (preserving signatures)
-- Creates semver tags (`v1.2.3` → `1.2`, `1`)
-- Re-signs on Quay.io
 
 ### Release Cadence
 
