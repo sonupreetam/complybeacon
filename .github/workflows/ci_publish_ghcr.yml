@@ -1,5 +1,5 @@
 # Best-practices pipeline combining security transparency (SBOM, attestations) with operational excellence (pre-push validation)
-name: publish-images
+name: Published Images to GHCR
 
 on:
   push:
