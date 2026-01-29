@@ -82,7 +82,7 @@ func (t *truthBeamProcessor) processLogs(ctx context.Context, ld plog.Logs) (plo
 
 // start will add HTTP client and pre-fetch any policy data
 func (t *truthBeamProcessor) start(ctx context.Context, host component.Host) error {
-	httpClient, err := t.config.ClientConfig.ToClient(ctx, host, t.telemetry)
+	httpClient, err := t.config.ClientConfig.ToClient(ctx, host.GetExtensions(), t.telemetry)
 	if err != nil {
 		return err
 	}
