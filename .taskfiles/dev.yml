@@ -25,9 +25,7 @@ tasks:
   test:
     desc: Run unit tests with coverage and version checks for all modules
     cmds:
-      - task: :version:check-go-version
-      - task: :version:check-go-mod-consistency
-      - task: :version:check-otel-versions
+      - task: :version:check
       - mkdir -p {{.TEST_DIR}}
       - bash {{.ROOT_DIR}}/.taskfiles/scripts/go-module-runner.sh test
 

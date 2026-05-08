@@ -36,7 +36,7 @@ It complements the [DESIGN.md](./DESIGN.md) document by focusing on the practica
 
 ### Required Software
 
-- **Go 1.25+**: The project uses Go 1.25.8 with toolchain 1.25.9
+- **Go 1.26+**: The project uses Go 1.26.3
 - **Podman**: For containerized development and deployment (Docker is not supported)
 - **Task**: For build automation ([installation guide](https://taskfile.dev/installation/))
 - **Git**: For version control
@@ -129,9 +129,15 @@ complybeacon/
 ├── beacon-distro/              # OpenTelemetry Collector distribution
 │   ├── config.yaml            # Collector configuration
 │   └── Containerfile.collector # Container definition
-├── hack/                       # Development utilities
-│   ├── demo/                  # Demo configurations
-│   ├── sampledata/            # Sample data for testing
+├── configs/                    # Deployment configs (collector, Loki)
+│   ├── collector-base.yaml    # Base layer: OCSF transform + Loki
+│   ├── collector-storage.yaml # Storage layer: adds S3 export
+│   ├── collector-enrichment.yaml # Enrichment layer: adds TruthBeam
+│   └── loki.yaml              # Loki configuration
+├── certs/                      # TLS certificate generation
+├── deploy/                     # Deployment infrastructure (Terraform)
+├── tests/                      # Test infrastructure
+│   └── integration/           # E2E Ginkgo tests, mock Compass, fixtures
 └── bin/                        # Built binaries (created by task infra:deploy)
 ```
 
@@ -156,28 +162,35 @@ cd truthbeam && go test -v ./...
 
 ### Integration Testing
 
-The project includes integration tests using the demo environment:
+The project includes automated integration tests using [Ginkgo](https://onsi.github.io/ginkgo/) that validate the evidence pipeline at three deployment layers:
+
+| Layer | Profile | What it tests |
+|-------|---------|--------------|
+| Base | *(default)* | OCSF transform + Loki export |
+| Storage | `storage` | S3 evidence export + partitioning |
+| Enrichment | `enrichment` | TruthBeam enrichment via mock Compass |
+
+**Prerequisites:**
+- Podman and podman-compose
+- Go 1.26+ (Ginkgo CLI is managed via `tool` directive in root `go.mod`)
+
+**Run all layers:**
 
 ```bash
-# Start the demo environment (builds images and starts services)
-task deploy
-
-# Or run in background
-podman-compose -f compose.yaml up -d
-
-# Test the pipeline
-curl -X POST http://localhost:8088/eventsource/receiver \
-  -H "Content-Type: application/json" \
-  -d @hack/sampledata/evidence.json
-
-# View logs
-podman-compose -f compose.yaml logs -f
-
-# Stop the environment
-task infra:undeploy
-
-# Check logs in Grafana at http://localhost:3000
+task integration:test
 ```
+
+**Run a single layer:**
+
+```bash
+task integration:test-profile PROFILE=base
+task integration:test-profile PROFILE=storage
+task integration:test-profile PROFILE=enrichment
+```
+
+Each run builds the collector image, starts the appropriate services, runs the matching Ginkgo test suite (filtered by label), and tears down. Certificates are generated automatically if missing. Test output is written to `.test-output/integration/`.
+
+For details on test cases, fixtures, and mock Compass configuration, see [tests/integration/README.md](../tests/integration/README.md).
 
 ## Component Development
 
@@ -268,7 +281,7 @@ podman build --no-cache -f beacon-distro/Containerfile.collector -t complybeacon
 podman run --rm complybeacon-collector --config /etc/otelcol-beacon/config.yaml
 
 # Full stack deployment for integration testing
-task deploy
+task infra:deploy
 ```
 
 ## Debugging and Troubleshooting
@@ -330,10 +343,18 @@ task codegen:weaver-codegen
 
 The demo environment orchestrates multiple containers (Grafana, Loki, Beacon Collector, Compass).
 
-1. **Start the full stack:**
+1. **Generate self-signed certificate**
+
+Since compass and truthbeam enable TLS by default, first generate self-signed certificates for testing/development:
+
+```bash
+task infra:generate-self-signed-cert
+```
+
+2. **Start the full stack:**
 ```bash
 # Interactive mode (shows logs in terminal)
-task infra:deploy
+task deploy
 
 # Or background/detached mode
 podman-compose -f compose.yaml up -d
@@ -344,18 +365,18 @@ This automatically:
 - Builds the beacon collector image
 - Starts all services (Grafana, Loki, Collector)
 
-2. **Test the pipeline:**
+3. **Test the pipeline:**
 ```bash
 curl -X POST http://localhost:8088/eventsource/receiver \
   -H "Content-Type: application/json" \
-  -d @hack/sampledata/evidence.json
+  -d @tests/integration/fixtures/evidence-fail.json
 ```
 
-3. **View results:**
+4. **View results:**
 - Grafana: <http://localhost:3000>
 - View logs: `podman-compose -f compose.yaml logs -f`
 
-4. **Stop the stack:**
+5. **Stop the stack:**
 ```bash
 task infra:undeploy
 ```
