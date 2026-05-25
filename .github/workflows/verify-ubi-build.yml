@@ -1,0 +1,29 @@
+name: Verify UBI Build
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-collector:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build collector image with UBI Containerfile
+        run: |
+          echo "=== Building collector with UBI10 Containerfile ==="
+          podman build -f beacon-distro/Containerfile.collector \
+            -t complybeacon/collector:verify \
+            beacon-distro/ 2>&1
+
+      - name: Verify image
+        run: |
+          echo "=== Image details ==="
+          podman inspect complybeacon/collector:verify --format '{{.Os}}/{{.Architecture}}'
+          echo "=== Check CA bundle exists ==="
+          podman run --rm complybeacon/collector:verify \
+            ls -la /etc/pki/tls/certs/ca-bundle.crt
+          echo "=== Collector version ==="
+          podman run --rm complybeacon/collector:verify --version
